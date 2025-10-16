@@ -1,0 +1,107 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String              @id @default(uuid())
+  walletAdress      String              @unique
+  email             String?
+  name              String?
+  image             String?
+  createdAt         DateTime            @default(now())
+  Workflow          Workflow[]
+  WorkflowExecution WorkflowExecution[]
+}
+
+model Workflow {
+  id                String              @id @default(uuid())
+  name              String
+  description       String
+  userId            String
+  user              User                @relation(references: [id], fields: [userId])
+  isPublic          Boolean             @default(false)
+  isActive          Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  WorkflowNode      WorkflowNode[]
+  WorkflowEdge      WorkflowEdge[]
+  WorkflowExecution WorkflowExecution[]
+  WorkflowVersion   WorkflowVersion[]
+}
+
+model WorkflowNode {
+  id         String           @id @default(uuid())
+  workflowId String
+  workflow   Workflow         @relation(references: [id], fields: [workflowId])
+  type       WorkflowNodeType
+  name       String
+  positionX  Float
+  positionY  Float
+  config     Json
+  orderIndex Int              @default(0)
+}
+
+enum WorkflowNodeType {
+  Trigger
+  Action
+  Condition
+  Http
+  // more to be added
+}
+
+model WorkflowEdge {
+  id         String   @id @default(cuid())
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id])
+
+  sourceNodeId String
+  targetNodeId String
+  label        WorkflowEdgeLabel
+}
+
+enum WorkflowEdgeLabel {
+  onSuccess
+  onFaliure
+}
+
+model WorkflowExecution {
+  id         String   @id @default(cuid())
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id])
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+
+  status     ExecutionStatus @default(PENDING)
+  logs       Json // Array of logs or structured events
+  startedAt  DateTime        @default(now())
+  finishedAt DateTime?
+}
+
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+model WorkflowVersion {
+  id         String   @id @default(cuid())
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id])
+
+  versionNumber Int
+  snapshot      Json // Full serialized workflow: {nodes, edges, config}
+  createdAt     DateTime @default(now())
+}
