@@ -1,7 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { HttpStatus } from "../types";
 import { prisma } from "../db/db";
-import { memo } from "react";
 
 export const integrationsConnectRouter = Router();
 

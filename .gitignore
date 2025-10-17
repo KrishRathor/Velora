@@ -39,3 +39,5 @@ yarn-error.log*
 
 apps/server/prisma/migrations
 apps/server/prisma/generated
+apps/server/src/generated
+apps/server/src/migrations
