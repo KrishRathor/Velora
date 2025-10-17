@@ -1,20 +1,29 @@
 import { Router, type Request, type Response } from "express";
 import { HttpStatus } from "../types";
 import { prisma } from "../db/db";
+import { config } from "dotenv";
+
+config();
 
 export const integrationsConnectRouter = Router();
 
 integrationsConnectRouter.post("/github", async (req: Request, res: Response) => {
   try {
 
+    console.log("here");
+
     const clientId = process.env.GITHUB_CLIENT_ID;
-    const redirectUri = process.env.GITHUB_REDIRECT_ID;
+    const redirectUri = process.env.GITHUB_REDIRECT_URL;
 
-    const scopes = ["repo", "read:org", "admin:repo_hook"];
+    console.log(clientId, redirectUri);
 
-    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scopes.join(" ")}&allow_signup=true`;
+    const scopes = "repo,read:org,admin:repo_hook";
 
-    res.redirect(githubAuthUrl);
+    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scopes}&allow_signup=true`;
+
+    res.status(HttpStatus.OK).json({
+      url: githubAuthUrl
+    })
 
   } catch (error) {
     console.log(error);
@@ -42,7 +51,7 @@ integrationsConnectRouter.get("/github/callback", async (req: Request, res: Resp
         client_id: process.env.GITHUB_CLIENT_ID!,
         client_secret: process.env.GITHUB_CLIENT_SECRET!,
         code,
-        redirect_uri: process.env.GITHUB_REDIRECT_URI!,
+        redirect_uri: process.env.GITHUB_REDIRECT_URL!,
       }),
     });
 
@@ -51,7 +60,9 @@ integrationsConnectRouter.get("/github/callback", async (req: Request, res: Resp
     const tokenType = data.token_type;
     const scopes = data.scope;
 
-    const userId = req.body.userId;
+    //     const userId = req.body.userId;
+
+    const userId = "a9acd259-4b26-4a32-9d67-35138c462889";
 
     if (typeof userId !== "string") {
       res.status(HttpStatus.BAD_REQUEST).json({
