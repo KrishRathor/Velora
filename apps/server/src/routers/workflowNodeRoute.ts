@@ -2,12 +2,11 @@ import { Router, type Response, type Request, response } from "express";
 import { HttpStatus } from "../types";
 import { createWorkflowNodeSchema } from "../types/workflow.type";
 import { prisma } from "../db/db";
-import { Param } from "@prisma/client/runtime/library";
 import { workflowRouter } from "./workflowRoute";
 
 export const workflowNodeRouter = Router();
 
-workflowNodeRouter.post("/workflownode", async (req: Request, res: Response) => {
+workflowNodeRouter.post("/create", async (req: Request, res: Response) => {
   try {
 
     const parsedBody = createWorkflowNodeSchema.safeParse(req.body);

@@ -1,23 +1,38 @@
 import fetch from "node-fetch";
+import { Octokit } from "octokit";
 
 export async function createPRTrigger(repoFullName: string, callbackUrl: string, accessToken: string) {
-  const res = await fetch(`https://api.github.com/repos/${repoFullName}/hooks`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
+  console.log("heree");
+
+  console.log(accessToken);
+
+  const octokit = new Octokit({
+    auth: accessToken
+  })
+  const [owner, repo] = repoFullName.split("/");
+
+  const res = await octokit.request(`POST /repos/${owner}/${repo}/hooks`, {
+    owner: owner,
+    repo: repo,
+    name: 'web',
+    active: true,
+    events: [
+      'push',
+      'pull_request'
+    ],
+    config: {
+      url: callbackUrl,
+      content_type: 'json',
+      insecure_ssl: '0'
     },
-    body: JSON.stringify({
-      name: "web",
-      active: true,
-      events: ["pull_request"],
-      config: {
-        url: callbackUrl,
-        content_type: "json",
-      },
-    }),
-  });
-  return res.json();
+    headers: {
+      'X-GitHub-Api-Version': '2022-11-28'
+    }
+  })
+
+  console.log(res);
+
+  return res.data;
 }
 
 export async function createIssueTrigger(repoFullName: string, callbackUrl: string, accessToken: string) {

@@ -5,12 +5,13 @@ import { prisma } from "../db/db";
 
 export const workflowRouter = Router()
 
-workflowRouter.post("workflow", async (req: Request, res: Response) => {
+workflowRouter.post("/create", async (req: Request, res: Response) => {
   try {
 
     const parsedBody = createWorkflowSchema.safeParse(req.body);
 
     if (parsedBody.error) {
+      console.log(parsedBody.error);
       res.status(HttpStatus.BAD_REQUEST).json({
         message: "invalid body type",
         response: null,
@@ -24,7 +25,7 @@ workflowRouter.post("workflow", async (req: Request, res: Response) => {
       data: {
         name,
         description,
-        userId: '1'
+        userId: 'a9acd259-4b26-4a32-9d67-35138c462889'
       }
     })
 
@@ -42,7 +43,7 @@ workflowRouter.post("workflow", async (req: Request, res: Response) => {
   }
 })
 
-workflowRouter.get("workflow/:id", async (req: Request, res: Response) => {
+workflowRouter.get("/:id", async (req: Request, res: Response) => {
   try {
 
     const { id } = req.params;
@@ -75,7 +76,7 @@ workflowRouter.get("workflow/:id", async (req: Request, res: Response) => {
   }
 })
 
-workflowRouter.get("/workflow/user/:id", async (req: Request, res: Response) => {
+workflowRouter.get("/user/:id", async (req: Request, res: Response) => {
   try {
 
     const { id } = req.params;
@@ -109,7 +110,7 @@ workflowRouter.get("/workflow/user/:id", async (req: Request, res: Response) => 
   }
 })
 
-workflowRouter.post("deleteWorkflow/:id", async (req: Request, res: Response) => {
+workflowRouter.post("/delete/:id", async (req: Request, res: Response) => {
   try {
 
     const { id } = req.params;

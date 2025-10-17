@@ -5,7 +5,7 @@ import { prisma } from "../db/db";
 
 export const workflowEdgeRouter = Router();
 
-workflowEdgeRouter.post("/workflowedge", async (req: Request, res: Response) => {
+workflowEdgeRouter.post("/create", async (req: Request, res: Response) => {
   try {
 
     const parsedBody = createWorkflowEdgeSchema.safeParse(req.body);
