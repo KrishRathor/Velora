@@ -15,14 +15,15 @@ datasource db {
 }
 
 model User {
-  id                String              @id @default(uuid())
-  walletAdress      String              @unique
-  email             String?
-  name              String?
-  image             String?
-  createdAt         DateTime            @default(now())
-  Workflow          Workflow[]
-  WorkflowExecution WorkflowExecution[]
+  id                    String                  @id @default(uuid())
+  walletAdress          String                  @unique
+  email                 String?
+  name                  String?
+  image                 String?
+  createdAt             DateTime                @default(now())
+  Workflow              Workflow[]
+  WorkflowExecution     WorkflowExecution[]
+  IntegrationConnection IntegrationConnection[]
 }
 
 model Workflow {
@@ -51,6 +52,9 @@ model WorkflowNode {
   positionY  Float
   config     Json
   orderIndex Int              @default(0)
+
+  sourceEdges WorkflowEdge[] @relation("SourceNode")
+  targetEdges WorkflowEdge[] @relation("TargetNode")
 }
 
 enum WorkflowNodeType {
@@ -68,7 +72,11 @@ model WorkflowEdge {
 
   sourceNodeId String
   targetNodeId String
-  label        WorkflowEdgeLabel
+
+  sourceNode WorkflowNode @relation("SourceNode", fields: [sourceNodeId], references: [id])
+  targetNode WorkflowNode @relation("TargetNode", fields: [targetNodeId], references: [id])
+
+  label WorkflowEdgeLabel
 }
 
 enum WorkflowEdgeLabel {
@@ -104,4 +112,29 @@ model WorkflowVersion {
   versionNumber Int
   snapshot      Json // Full serialized workflow: {nodes, edges, config}
   createdAt     DateTime @default(now())
+}
+
+model IntegrationConnection {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  provider     ProviderType
+  accessToken  String
+  refreshToken String?
+  scopes       String
+  tokenType    String?
+  expiresAt    DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+enum ProviderType {
+  github
+  gmail
+  notion
+  slack
+  gcalendar
+  gdrive
+  openai
 }
