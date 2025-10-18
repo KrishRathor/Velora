@@ -1,7 +1,7 @@
 import type { Job } from "bullmq";
 import { prisma } from "../db/db";
 import { WorkflowNodeConfigSchema, type IWorkflowNodeConfig } from "../types/workflow.type";
-import { addCommentToPR, getPRDetails } from "../integrations/github";
+import { addCommentToPR, createIssue, getPRDetails, listUserRepos, mergePR } from "../integrations/github";
 import { nodeQueue } from ".";
 import { number } from "zod";
 
@@ -54,6 +54,8 @@ export const proccessJob = async (job: Job) => {
 const handleGithubJobs = async (payload: any, operation: any, config: IWorkflowNodeConfig) => {
 
   const { accessToken, prevNodeOperation, result, workflowId, node } = payload;
+  const repo = config.repo!;
+
   let edges = await prisma.workflowEdge.findMany({
     where: {
       sourceNodeId: node
@@ -68,13 +70,9 @@ const handleGithubJobs = async (payload: any, operation: any, config: IWorkflowN
         console.error(operation, " is only supported after ", prevNodeOperation);
         return
       }
-
-      console.log("inside queue operation ", operation, " ", result);
-
-      const repoFullName = config.repo!;
       const prNumber = result.prNumber;
 
-      const res: any = await getPRDetails(repoFullName, prNumber, accessToken);
+      const res: any = await getPRDetails(repo, prNumber, accessToken);
 
       const prDetails = {
         prNumber: res.number,
@@ -90,8 +88,6 @@ const handleGithubJobs = async (payload: any, operation: any, config: IWorkflowN
         }
       }
 
-
-
       edges.map(edge => {
         const payload = {
           accessToken,
@@ -101,14 +97,12 @@ const handleGithubJobs = async (payload: any, operation: any, config: IWorkflowN
           node: edge.targetNodeId,
           result: prDetails
         }
-        console.log("adding to queue ", payload);
         nodeQueue.add("node", payload);
 
       })
       break;
     case "add_comment_to_pr":
 
-      const repo = config.repo!;
       const prnumber = result.prNumber!;
       const comment = config.comment!;
 
@@ -123,17 +117,62 @@ const handleGithubJobs = async (payload: any, operation: any, config: IWorkflowN
           node: edge.targetNodeId,
           result: {}
         }
-        console.log("adding to queue ", payload);
         nodeQueue.add("node", payload);
+      })
+      break;
+    case "merge_pr":
 
+      await mergePR(repo, Number(result.prNumber!), accessToken)
+
+      edges.map(edge => {
+        const payload = {
+          accessToken,
+          workflowId,
+          prevNode: node,
+          prevNodeOperation: operation,
+          node: edge.targetNodeId,
+          result: {}
+        }
+        nodeQueue.add("node", payload);
       })
 
       break;
-    case "merge_pr":
-      break;
     case "create_issue":
+
+      const title = config.issueTitle!;
+      const body = config.issueBody!;
+
+      await createIssue(repo, title, body, accessToken)
+
+      edges.map(edge => {
+        const payload = {
+          accessToken,
+          workflowId,
+          prevNode: node,
+          prevNodeOperation: operation,
+          node: edge.targetNodeId,
+          result: {}
+        }
+        nodeQueue.add("node", payload);
+      })
+
       break;
     case "list_user_repo":
+
+      await listUserRepos(accessToken);
+
+      edges.map(edge => {
+        const payload = {
+          accessToken,
+          workflowId,
+          prevNode: node,
+          prevNodeOperation: operation,
+          node: edge.targetNodeId,
+          result: {}
+        }
+        nodeQueue.add("node", payload);
+      })
+
       break;
     default:
       return
