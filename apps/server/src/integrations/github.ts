@@ -59,10 +59,12 @@ export async function getPRDetails(repoFullName: string, prNumber: number, acces
   const res = await fetch(`https://api.github.com/repos/${repoFullName}/pulls/${prNumber}`, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/vnd.github.v3+json" },
   });
-  return res.json();
+  const data = await res.json();
+  return data;
 }
 
 export async function addCommentToPR(repoFullName: string, prNumber: number, comment: string, accessToken: string) {
+
   const res = await fetch(`https://api.github.com/repos/${repoFullName}/issues/${prNumber}/comments`, {
     method: "POST",
     headers: {
@@ -71,7 +73,7 @@ export async function addCommentToPR(repoFullName: string, prNumber: number, com
     },
     body: JSON.stringify({ body: comment }),
   });
-  return res.json();
+  return await res.json();
 }
 
 export async function mergePR(repoFullName: string, prNumber: number, accessToken: string) {

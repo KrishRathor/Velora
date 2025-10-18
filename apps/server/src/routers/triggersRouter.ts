@@ -3,7 +3,8 @@ import { HttpStatus } from "../types";
 import { createPRTrigger } from "../integrations/github";
 import { prisma } from "../db/db";
 import { Ops, WorkflowNodeConfigSchema, } from "../types/workflow.type";
-import { nodeQueue } from "../queue";
+import { connection, nodeQueue } from "../queue";
+import edge from "../generated/prisma/runtime/edge";
 
 export const triggerRouter = Router();
 
@@ -110,7 +111,7 @@ const handleGithubTriggers = async (res: Response, repo: string, operation: Ops,
         return
       }
 
-      const a = await createPRTrigger(repo, `https://603fded0779c.ngrok-free.app/api/v1/trigger/get/github/${nodeId}`, integration.accessToken);
+      const a = await createPRTrigger(repo, `https://000cdbc03e6a.ngrok-free.app/api/v1/trigger/get/github/${nodeId}`, integration.accessToken);
       res.status(HttpStatus.OK).json({
         a
       })
@@ -197,8 +198,6 @@ triggerRouter.post("/get/github/:id", async (req: Request, res: Response) => {
       return;
     }
 
-    console.log(req.body);
-
     const execution = await prisma.workflowExecution.create({
       data: {
         workflowId,
@@ -207,13 +206,63 @@ triggerRouter.post("/get/github/:id", async (req: Request, res: Response) => {
       }
     })
 
-    nodeQueue.add("node", {
-      workflowId: execution.id,
-      nodeId: node.id,
-      payload: req.body,
-      accessToken: integration.accessToken,
-      retries: 0
-    })
+
+    const operation = parsedConfig.data.operation;
+    const accessToken = integration.accessToken;
+
+    let payload = {};
+
+    switch (operation) {
+      case "create_pr_trigger":
+
+        if (req.body.action !== "opened") {
+          res.status(HttpStatus.OK);
+          return
+        }
+
+        // get next node
+        //
+
+        const edges = await prisma.workflowEdge.findMany({
+          where: {
+            sourceNodeId: node.id
+          }
+        });
+
+        if (!edges) {
+          console.error("no edges found")
+          res.status(HttpStatus.OK);
+          return
+        }
+
+        edges.map(edge => {
+          const prNumber = req.body.pull_request.number;
+          const prUrl = req.body.pull_request.url;
+          const prId = req.body.pull_request.id
+
+          const payload = {
+            accessToken,
+            workflowId,
+            prevNode: node.id,
+            prevNodeOperation: operation,
+            node: edge.targetNodeId,
+            result: {
+              prNumber,
+              prUrl,
+              prId
+            }
+          }
+          console.log("adding to queue ", payload);
+          nodeQueue.add("node", payload);
+        })
+        break
+      case "create_issue_trigger":
+        payload = {
+          accessToken,
+          workflowId,
+          prevNode: node.id,
+        }
+    }
 
     res.status(HttpStatus.OK).json({
       message: "created",

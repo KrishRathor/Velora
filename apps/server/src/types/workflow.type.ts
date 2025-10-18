@@ -66,3 +66,23 @@ export enum Ops {
   "create_issue",
   "list_user_repo",
 }
+
+export interface IWorkflowNodeConfig {
+  integration: "github" | "gmail";
+  operation:
+  | "create_pr_trigger"
+  | "create_issue_trigger"
+  | "get_pr_details"
+  | "add_comment_to_pr"
+  | "merge_pr"
+  | "create_issue"
+  | "list_user_repo";
+
+  repo?: string;
+  prNumber?: string;
+  comment?: string;
+  issueTitle?: string;
+  issueBody?: string;
+  condition?: string;
+}
+
