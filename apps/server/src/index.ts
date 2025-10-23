@@ -23,7 +23,7 @@ router.use("/workflow", workflowRouter);
 router.use("/workflow/edges", workflowEdgeRouter)
 router.use("/workflow/node", workflowNodeRouter);
 
-router.use("/integrations/connect", integrationsConnectRouter);
+router.use("/integrations", integrationsConnectRouter);
 router.use("/trigger", triggerRouter);
 
 app.use("/api/v1", router);

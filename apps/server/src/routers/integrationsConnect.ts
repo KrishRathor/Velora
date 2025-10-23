@@ -7,7 +7,46 @@ config();
 
 export const integrationsConnectRouter = Router();
 
-integrationsConnectRouter.post("/github", async (req: Request, res: Response) => {
+integrationsConnectRouter.get("/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (typeof id !== "string") {
+      res.status(HttpStatus.BAD_REQUEST).json({
+        message: "invalid body type",
+        response: null,
+      })
+      return;
+    }
+
+    const integrations = await prisma.integrationConnection.findMany({
+      where: {
+        userId: id
+      }
+    })
+
+    res.status(HttpStatus.OK).json({
+      message: "Ok",
+      response: integrations.map(integration => {
+        return {
+          id: integration.id,
+          accessToken: integration.accessToken,
+          provider: integration.provider,
+          scopes: integration.scopes
+        }
+      })
+    })
+
+  } catch (error) {
+    console.log(error);
+    res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      message: "INTERNAL_SERVER_ERROR",
+      response: null
+    })
+  }
+})
+
+integrationsConnectRouter.post("/connect/github", async (req: Request, res: Response) => {
   try {
 
     console.log("here");
@@ -34,7 +73,7 @@ integrationsConnectRouter.post("/github", async (req: Request, res: Response) =>
   }
 })
 
-integrationsConnectRouter.get("/github/callback", async (req: Request, res: Response) => {
+integrationsConnectRouter.get("/connect/github/callback", async (req: Request, res: Response) => {
   try {
 
     const code = req.query.code as string;
@@ -121,4 +160,45 @@ integrationsConnectRouter.get("/github/callback", async (req: Request, res: Resp
       response: null
     })
   }
-}) 
+})
+
+integrationsConnectRouter.post("/delete/:integrationId", async (req: Request, res: Response) => {
+  try {
+    const { integrationId } = req.params;
+
+    if (typeof integrationId !== "string" || !integrationId.trim()) {
+      res.status(HttpStatus.BAD_REQUEST).json({
+        message: "Invalid integration ID",
+        response: null,
+      });
+      return;
+    }
+
+    const integration = await prisma.integrationConnection.findUnique({
+      where: { id: integrationId },
+    });
+
+    if (!integration) {
+      res.status(HttpStatus.NOT_FOUND).json({
+        message: "Integration not found",
+        response: null,
+      });
+      return;
+    }
+
+    await prisma.integrationConnection.delete({
+      where: { id: integrationId },
+    });
+
+    res.status(HttpStatus.OK).json({
+      message: "Integration deleted successfully",
+      response: integrationId,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      message: "INTERNAL_SERVER_ERROR",
+      response: null,
+    });
+  }
+});

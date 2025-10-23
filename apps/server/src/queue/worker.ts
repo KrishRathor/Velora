@@ -43,14 +43,6 @@ export const proccessJob = async (job: Job) => {
 
 }
 
-//"create_pr_trigger",
-//  "create_issue_trigger",
-//  "get_pr_details",
-//  "add_comment_to_pr",
-//  "merge_pr",
-//  "create_issue",
-//  "list_user_repo",
-
 const handleGithubJobs = async (payload: any, operation: any, config: IWorkflowNodeConfig) => {
 
   const { accessToken, prevNodeOperation, result, workflowId, node } = payload;

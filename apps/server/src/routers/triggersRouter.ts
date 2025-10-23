@@ -1,10 +1,9 @@
 import { Router, type Response, type Request } from "express";
 import { HttpStatus } from "../types";
-import { createPRTrigger } from "../integrations/github";
+import { createIssueTrigger, createPRTrigger } from "../integrations/github";
 import { prisma } from "../db/db";
 import { Ops, WorkflowNodeConfigSchema, } from "../types/workflow.type";
-import { connection, nodeQueue } from "../queue";
-import edge from "../generated/prisma/runtime/edge";
+import { nodeQueue } from "../queue";
 
 export const triggerRouter = Router();
 
@@ -87,41 +86,36 @@ triggerRouter.post("/set/:id", async (req: Request, res: Response) => {
 })
 
 const handleGithubTriggers = async (res: Response, repo: string, operation: Ops, nodeId: string) => {
+  const userId = "a9acd259-4b26-4a32-9d67-35138c462889";
+  const integration = await prisma.integrationConnection.findFirst({
+    where: {
+      userId,
+      provider: "github"
+    }
+  })
 
+  if (!integration) {
+    res.status(HttpStatus.UNAUTHORIZED).json({
+      message: "UNAUTHORIZED",
+      response: null
+    })
+    return
+  }
   switch (operation) {
     // @ts-ignore
     case "create_pr_trigger":
-
-      console.log("creating pr trigger on repo", repo);
-
-      const userId = "a9acd259-4b26-4a32-9d67-35138c462889";
-
-      const integration = await prisma.integrationConnection.findFirst({
-        where: {
-          userId,
-          provider: "github"
-        }
-      })
-
-      if (!integration) {
-        res.status(HttpStatus.UNAUTHORIZED).json({
-          message: "UNAUTHORIZED",
-          response: null
-        })
-        return
-      }
-
-      const a = await createPRTrigger(repo, `https://000cdbc03e6a.ngrok-free.app/api/v1/trigger/get/github/${nodeId}`, integration.accessToken);
-      res.status(HttpStatus.OK).json({
-        a
-      })
+      await createPRTrigger(repo, `https://000cdbc03e6a.ngrok-free.app/api/v1/trigger/get/github/${nodeId}`, integration.accessToken);
+      res.status(HttpStatus.OK)
       break;
-    case Ops.create_issue_trigger:
-    case Ops.get_pr_details:
-    case Ops.add_comment_to_pr:
-    case Ops.merge_pr:
-    case Ops.create_issue:
-    case Ops.list_user_repo:
+    // @ts-ignore
+    case "create_issue_trigger":
+      await createIssueTrigger(
+        repo,
+        `https://000cdbc03e6a.ngrok-free.app/api/v1/trigger/get/github/${nodeId}`,
+        integration.accessToken
+      )
+      res.status(HttpStatus.OK)
+      break;
     default:
       res.status(HttpStatus.BAD_REQUEST).json({
         message: `${operation} not supported`,
@@ -133,8 +127,6 @@ const handleGithubTriggers = async (res: Response, repo: string, operation: Ops,
 
 triggerRouter.post("/get/github/:id", async (req: Request, res: Response) => {
   try {
-
-    console.log("got webhook")
 
     const { id } = req.params;
 
@@ -206,7 +198,6 @@ triggerRouter.post("/get/github/:id", async (req: Request, res: Response) => {
       }
     })
 
-
     const operation = parsedConfig.data.operation;
     const accessToken = integration.accessToken;
 
@@ -219,9 +210,6 @@ triggerRouter.post("/get/github/:id", async (req: Request, res: Response) => {
           res.status(HttpStatus.OK);
           return
         }
-
-        // get next node
-        //
 
         const edges = await prisma.workflowEdge.findMany({
           where: {
