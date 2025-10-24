@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { WorkflowsContent } from './Workflow';
 import { CredentialsContent } from './Credentials';
+import { CreateWorkflowDialog } from './CreateWorkflowDialog';
+import { useNavigate } from 'react-router-dom';
+import { useMutation } from '@tanstack/react-query';
+import { BACKEND_URL } from '../../utils/constants';
 
 type TabType = 'workflows' | 'credentials' | 'executions' | 'data_tables';
 
@@ -28,6 +32,55 @@ const PlaceholderContent: React.FC<{ tab: string }> = ({ tab }) => (
 
 export const MainContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('workflows');
+
+  const [name, setName] = useState<string>("");
+  const [description, setDescription] = useState<string>("");
+  const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
+
+  const navigate = useNavigate();
+
+
+  const createWorkflow = useMutation({
+    mutationFn: async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/workflow/create`, {
+          method: 'POST',
+          headers: {
+            'Content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            name,
+            description
+          })
+        })
+
+        if (!response.ok) {
+          throw new Error("Network Error");
+        }
+
+        const data = await response.json();
+        if (response.status !== 201) {
+          throw new Error(data.message);
+        }
+
+        const workflowId = data.response;
+        return workflowId;
+      } catch (error) {
+        console.log(error);
+      }
+    },
+    onSuccess: (workflowId) => {
+      navigate(`/workflow?id=${workflowId}`);
+    }
+  })
+
+  const mutationWithState = {
+    ...createWorkflow,
+    setName,
+    setDescription,
+    name,
+    description
+  }
 
   const renderContent = () => {
     switch (activeTab) {
@@ -64,8 +117,18 @@ export const MainContent: React.FC = () => {
   return (
     <div className="flex-1 p-6 bg-gray-900 overflow-auto">
 
+      <CreateWorkflowDialog
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        mutation={mutationWithState}
+      />
+
       <div className="flex justify-end mb-6">
-        <button className="flex cursor-pointer items-center bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 px-4 rounded-md transition-colors shadow-lg">
+        <button
+          onClick={() => {
+            setIsDialogOpen(true);
+          }}
+          className="flex cursor-pointer items-center bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 px-4 rounded-md transition-colors shadow-lg">
           Create Workflow
         </button>
       </div>
