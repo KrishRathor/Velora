@@ -1,4 +1,4 @@
-import { Router, type Response, type Request, response } from "express";
+import { Router, type Response, type Request } from "express";
 import { HttpStatus } from "../types";
 import { createWorkflowNodeSchema } from "../types/workflow.type";
 import { prisma } from "../db/db";
@@ -63,7 +63,7 @@ workflowNodeRouter.post("/create", async (req: Request, res: Response) => {
 
 })
 
-workflowNodeRouter.get("/workflownode/:id", async (req: Request, res: Response) => {
+workflowNodeRouter.get("/:id", async (req: Request, res: Response) => {
   try {
 
     const { id } = req.params;
@@ -96,7 +96,7 @@ workflowNodeRouter.get("/workflownode/:id", async (req: Request, res: Response) 
   }
 })
 
-workflowRouter.post("/workflownode/delete/:id", async (req: Request, res: Response) => {
+workflowRouter.post("/delete/:id", async (req: Request, res: Response) => {
   try {
 
     const { id } = req.params;
@@ -128,3 +128,5 @@ workflowRouter.post("/workflownode/delete/:id", async (req: Request, res: Respon
     })
   }
 })
+
+

@@ -144,3 +144,68 @@ workflowRouter.post("/delete/:id", async (req: Request, res: Response) => {
   }
 
 })
+
+
+workflowRouter.get("/:workflowId/edges", async (req: Request, res: Response) => {
+  try {
+    const { workflowId } = req.params;
+
+    if (typeof workflowId !== "string") {
+      res.status(HttpStatus.BAD_REQUEST).json({
+        message: "Invalid workflowId type",
+        response: null,
+      });
+      return;
+    }
+
+    const edges = await prisma.workflowEdge.findMany({
+      where: {
+        workflowId,
+      },
+    });
+
+    res.status(HttpStatus.OK).json({
+      message: "OK",
+      response: edges,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      message: "INTERNAL_SERVER_ERROR",
+      response: null,
+    });
+  }
+});
+
+
+workflowRouter.get("/:workflowId/nodes", async (req: Request, res: Response) => {
+  try {
+    const { workflowId } = req.params;
+    console.log(workflowId, typeof workflowId)
+
+    if (typeof workflowId !== "string") {
+      res.status(HttpStatus.BAD_REQUEST).json({
+        message: "Invalid workflowId type",
+        response: null,
+      });
+      return;
+    }
+
+    const nodes = await prisma.workflowNode.findMany({
+      where: {
+        workflowId,
+      }
+    });
+
+    res.status(HttpStatus.OK).json({
+      message: "OK",
+      response: nodes,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      message: "INTERNAL_SERVER_ERROR",
+      response: null,
+    });
+  }
+});

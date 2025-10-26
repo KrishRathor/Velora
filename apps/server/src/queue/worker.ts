@@ -1,19 +1,18 @@
-import type { Job } from "bullmq";
+import { errorObject, type Job } from "bullmq";
 import { prisma } from "../db/db";
-import { WorkflowNodeConfigSchema, type IWorkflowNodeConfig } from "../types/workflow.type";
 import { addCommentToPR, createIssue, getPRDetails, listUserRepos, mergePR } from "../integrations/github";
 import { nodeQueue } from ".";
-import { number } from "zod";
+import { WorkflowNodeConfigSchema, type NodeQueuePayload } from "../types/workflow.type";
 
 export const proccessJob = async (job: Job) => {
 
   console.log("inside job worker => ", job.data);
   try {
-    const { node } = job.data;
+    const payload = job.data as NodeQueuePayload;
 
     const nodeObject = await prisma.workflowNode.findFirst({
       where: {
-        id: node
+        id: payload.node
       }
     })
 
@@ -31,9 +30,16 @@ export const proccessJob = async (job: Job) => {
 
     const { integration, operation } = parsedConfig.data;
 
+    const newpayload = {
+      ...payload,
+      config: parsedConfig.data,
+      operation,
+      integration
+    }
+
     switch (integration) {
       case "github":
-        await handleGithubJobs(job.data, operation, parsedConfig.data);
+        await handleGithubJobs(newpayload);
         break
     }
 
@@ -43,132 +49,185 @@ export const proccessJob = async (job: Job) => {
 
 }
 
-const handleGithubJobs = async (payload: any, operation: any, config: IWorkflowNodeConfig) => {
+const handleGithubJobs = async (payload: NodeQueuePayload) => {
 
-  const { accessToken, prevNodeOperation, result, workflowId, node } = payload;
-  const repo = config.repo!;
+  try {
+    const { node, workflowId, config, operation, accessToken, result } = payload;
 
-  let edges = await prisma.workflowEdge.findMany({
-    where: {
-      sourceNodeId: node
+    let prNumber;
+    if (config.prNumber?.type === "static") {
+      prNumber = config.prNumber.value;
+    } else {
+      if (config.prNumber?.field && result) {
+        prNumber = result[config.prNumber?.field];
+      }
     }
-  })
 
-  switch (operation) {
+    let repo;
+    if (config.repo?.type === "static") {
+      repo = config.repo.value;
+    } else {
+      if (config.repo?.field && result) {
+        repo = result[config.repo.field];
+      }
+    }
 
-    case "get_pr_details":
+    let comment;
+    if (config.comment?.type === "static") {
+      comment = config.comment.value;
+    } else {
+      if (config.comment?.field && result) {
+        comment = result[config.comment.field];
+      }
+    }
 
-      if (prevNodeOperation !== "create_pr_trigger") {
-        console.error(operation, " is only supported after ", prevNodeOperation);
+    let edges = await prisma.workflowEdge.findMany({
+      where: {
+        sourceNodeId: node
+      }
+    })
+
+    switch (operation) {
+
+      case "get_pr_details":
+
+        if (payload.prevNodeOperation !== "get_pr_details") {
+          console.error(operation, " is only supported after ", payload.prevNodeOperation);
+          return
+        }
+
+        if (!prNumber) {
+          throw new Error(`No Pr Number ${config.prNumber}`)
+        }
+
+        if (!repo) {
+          throw new Error(`No repo provided ${config.repo}`);
+        }
+
+        const prDetails = await getPRDetails(repo, Number(prNumber), accessToken);
+
+        edges.forEach(edge => {
+          nodeQueue.add("node", {
+            workflowId,
+            node: edge.targetNodeId,
+            prevNode: node,
+            prevNodeOperation: operation,
+            result: {
+              ...result,
+              prDetails
+            },
+            integration: "github",
+            operation: operation,
+            accessToken,
+            config
+          });
+        });
+        break;
+      case "add_comment_to_pr":
+
+        if (!repo) {
+          throw new Error(`No repo provided ${config.repo}`);
+        }
+
+        if (!comment) {
+          throw new Error(`No repo provided ${config.comment}`);
+        }
+
+        await addCommentToPR(repo, Number(prNumber), comment, accessToken)
+
+        edges.map(edge => {
+          const payload: NodeQueuePayload = {
+            accessToken,
+            workflowId,
+            prevNode: node,
+            prevNodeOperation: operation,
+            node: edge.targetNodeId,
+            result: {
+              ...result
+            },
+            integration: "github",
+            operation,
+            config
+          }
+          nodeQueue.add("node", payload);
+        })
+        break;
+      case "merge_pr":
+
+        await mergePR(repo, Number(result?.prNumber!), accessToken)
+
+        edges.map(edge => {
+          const payload: NodeQueuePayload = {
+            accessToken,
+            workflowId,
+            prevNode: node,
+            prevNodeOperation: operation,
+            node: edge.targetNodeId,
+            result: {
+              ...result
+            },
+            integration: "github",
+            config,
+            operation
+          }
+          nodeQueue.add("node", payload);
+        })
+
+        break;
+      case "create_issue":
+
+        const title = config.issueTitle!;
+        const body = config.issueBody!;
+
+        await createIssue(repo, title, body, accessToken)
+
+        edges.map(edge => {
+          const payload: NodeQueuePayload = {
+            accessToken,
+            workflowId,
+            prevNode: node,
+            prevNodeOperation: operation,
+            node: edge.targetNodeId,
+            config,
+            result: {
+              ...result
+            },
+            integration: "github",
+            operation
+          }
+          nodeQueue.add("node", payload);
+        })
+
+        break;
+      case "list_user_repo":
+
+        await listUserRepos(accessToken);
+
+        edges.map(edge => {
+          const payload: NodeQueuePayload = {
+            accessToken,
+            workflowId,
+            prevNode: node,
+            prevNodeOperation: operation,
+            node: edge.targetNodeId,
+            config,
+            result: {
+              ...result
+            },
+            integration: "github",
+            operation
+          }
+          nodeQueue.add("node", payload);
+        })
+
+        break;
+      default:
         return
-      }
-      const prNumber = result.prNumber;
 
-      const res: any = await getPRDetails(repo, prNumber, accessToken);
 
-      const prDetails = {
-        prNumber: res.number,
-        prUrl: res.url,
-        state: res.state,
-        title: res.title,
-        body: res.body,
-        createdAt: res.createdAt,
-        user: {
-          name: res.user.login,
-          avatar: res.user.avatar_url,
-          url: res.user.url
-        }
-      }
-
-      edges.map(edge => {
-        const payload = {
-          accessToken,
-          workflowId,
-          prevNode: node,
-          prevNodeOperation: operation,
-          node: edge.targetNodeId,
-          result: prDetails
-        }
-        nodeQueue.add("node", payload);
-
-      })
-      break;
-    case "add_comment_to_pr":
-
-      const prnumber = result.prNumber!;
-      const comment = config.comment!;
-
-      await addCommentToPR(repo, Number(prnumber), comment + " after " + result.title, accessToken)
-
-      edges.map(edge => {
-        const payload = {
-          accessToken,
-          workflowId,
-          prevNode: node,
-          prevNodeOperation: operation,
-          node: edge.targetNodeId,
-          result: {}
-        }
-        nodeQueue.add("node", payload);
-      })
-      break;
-    case "merge_pr":
-
-      await mergePR(repo, Number(result.prNumber!), accessToken)
-
-      edges.map(edge => {
-        const payload = {
-          accessToken,
-          workflowId,
-          prevNode: node,
-          prevNodeOperation: operation,
-          node: edge.targetNodeId,
-          result: {}
-        }
-        nodeQueue.add("node", payload);
-      })
-
-      break;
-    case "create_issue":
-
-      const title = config.issueTitle!;
-      const body = config.issueBody!;
-
-      await createIssue(repo, title, body, accessToken)
-
-      edges.map(edge => {
-        const payload = {
-          accessToken,
-          workflowId,
-          prevNode: node,
-          prevNodeOperation: operation,
-          node: edge.targetNodeId,
-          result: {}
-        }
-        nodeQueue.add("node", payload);
-      })
-
-      break;
-    case "list_user_repo":
-
-      await listUserRepos(accessToken);
-
-      edges.map(edge => {
-        const payload = {
-          accessToken,
-          workflowId,
-          prevNode: node,
-          prevNodeOperation: operation,
-          node: edge.targetNodeId,
-          result: {}
-        }
-        nodeQueue.add("node", payload);
-      })
-
-      break;
-    default:
-      return
-
+    }
+  } catch (error) {
+    console.log(error)
   }
 
 }

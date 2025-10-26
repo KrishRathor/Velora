@@ -48,7 +48,7 @@ workflowEdgeRouter.post("/create", async (req: Request, res: Response) => {
   }
 })
 
-workflowEdgeRouter.post("workflowedgeRouter/delete/:id", async (req: Request, res: Response) => {
+workflowEdgeRouter.post("/delete/:id", async (req: Request, res: Response) => {
   try {
 
     const { id } = req.params;
@@ -79,3 +79,4 @@ workflowEdgeRouter.post("workflowedgeRouter/delete/:id", async (req: Request, re
     })
   }
 })
+
