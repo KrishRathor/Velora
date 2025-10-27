@@ -2,6 +2,7 @@ import { Router, type Response, type Request, response } from "express";
 import { createWorkflowSchema } from "../types/workflow.type";
 import { HttpStatus } from "../types";
 import { prisma } from "../db/db";
+import { getAuth } from "@clerk/express";
 
 export const workflowRouter = Router()
 
@@ -20,12 +21,21 @@ workflowRouter.post("/create", async (req: Request, res: Response) => {
     }
 
     const { name, description } = parsedBody.data;
+    const userId = getAuth(req).userId;
+
+    if (userId === null) {
+      res.status(HttpStatus.UNAUTHORIZED).json({
+        message: "user token not found",
+        response: null
+      })
+      return
+    }
 
     const createWorkflow = await prisma.workflow.create({
       data: {
         name,
         description,
-        userId: 'a9acd259-4b26-4a32-9d67-35138c462889'
+        userId
       }
     })
 
@@ -43,8 +53,10 @@ workflowRouter.post("/create", async (req: Request, res: Response) => {
   }
 })
 
-workflowRouter.get("/:id", async (req: Request, res: Response) => {
+workflowRouter.get("/workflow/:id", async (req: Request, res: Response) => {
   try {
+
+    console.log("here in id");
 
     const { id } = req.params;
 
@@ -76,10 +88,12 @@ workflowRouter.get("/:id", async (req: Request, res: Response) => {
   }
 })
 
-workflowRouter.get("/user/:id", async (req: Request, res: Response) => {
+workflowRouter.get("/user", async (req: Request, res: Response) => {
   try {
 
-    const { id } = req.params;
+
+    const id = getAuth(req).userId;
+    console.log(id);
 
     if (typeof id !== "string") {
       res.status(HttpStatus.BAD_REQUEST).json({
@@ -94,6 +108,7 @@ workflowRouter.get("/user/:id", async (req: Request, res: Response) => {
         userId: id
       }
     })
+    console.log(workflows);
 
     res.status(HttpStatus.OK).json({
       message: "OK",

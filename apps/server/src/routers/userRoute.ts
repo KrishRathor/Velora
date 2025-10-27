@@ -2,7 +2,7 @@ import { Router, type Response, type Request } from "express";
 
 export const userRouter = Router();
 
-userRouter.post("/user", async (req: Request, res: Response) => {
+userRouter.post("/user/create", async (req: Request, res: Response) => {
 
   try {
 

@@ -13,8 +13,10 @@ import {
 } from "@xyflow/react";
 import { NodeSelectorSidebar, type IWorkflowNodeConfig } from "./NodeSelector";
 import { FaPlus } from "react-icons/fa";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { BACKEND_URL } from "../../utils/constants";
+import { NodeConfigDialog } from "./UpdateNodeDialogBox";
+import { useAuth } from "@clerk/clerk-react";
 
 
 interface EditorProps {
@@ -43,13 +45,28 @@ export interface WorkflowEdge {
 
 export const Editor: React.FC<EditorProps> = ({ workflow }) => {
 
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const handleNodeClick = (_: React.MouseEvent, node: Node) => {
+    console.log(node);
+    setSelectedNode(node);
+    setIsDialogOpen(true);
+  };
+
+
   const { data: nodesBackend, isLoading: isNodesLoading, isError: isNodesError, error: nodesError } = useQuery({
     queryKey: ['workflow', 'nodes', [workflow.id]],
     queryFn: async () => {
       try {
 
+        const token = await getToken();
         console.log(typeof workflow.id, workflow.id, `${BACKEND_URL}/workflow/${workflow.id}/nodes`);
-        const response = await fetch(`${BACKEND_URL}/workflow/${workflow.id}/nodes`);
+        const response = await fetch(`${BACKEND_URL}/workflow/${workflow.id}/nodes`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
         const data = await response.json();
 
         if (!response.ok) {
@@ -68,7 +85,12 @@ export const Editor: React.FC<EditorProps> = ({ workflow }) => {
     queryKey: ['workflow', 'edges', [workflow.id]],
     queryFn: async () => {
       try {
-        const response = await fetch(`${BACKEND_URL}/workflow/${workflow.id}/edges`);
+        const token = await getToken();
+        const response = await fetch(`${BACKEND_URL}/workflow/${workflow.id}/edges`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
         const data = await response.json();
 
         if (!response.ok) {
@@ -105,12 +127,164 @@ export const Editor: React.FC<EditorProps> = ({ workflow }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  const onConnect = (params: Connection | Edge) =>
+  const { getToken } = useAuth();
+
+  const createEdgeMutation = useMutation({
+    mutationFn: async ({ sourceNodeId, targetNodeId }: { sourceNodeId: string, targetNodeId: string }) => {
+
+      const token = await getToken();
+
+      const response = await fetch(`${BACKEND_URL}/workflow/edges/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          sourceNodeId,
+          targetNodeId,
+          workflowId: workflow.id,
+          label: "onSuccess"
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error("Can't create edge");
+      }
+
+    }
+  })
+
+  const deletedEdgeMutation = useMutation({
+    mutationFn: async ({ id }: { id: string }) => {
+
+      const token = await getToken();
+
+      const response = await fetch(`${BACKEND_URL}/workflow/edges/delete/${id}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error("Can't create node");
+      }
+    }
+  })
+
+  const onConnect = (params: Connection | Edge) => {
+    console.log(params);
+    const sourceNodeId = params.source;
+    const targetNodeId = params.target;
+    createEdgeMutation.mutate({
+      sourceNodeId,
+      targetNodeId
+    })
     setEdges((eds) => addEdge(params, eds));
+  }
 
 
-  const handleAddNode = (config: IWorkflowNodeConfig, type: string ) => {
-    console.log(config);
+  const createNodeMutation = useMutation({
+    mutationFn: async ({ positionX, positionY, config, type, name }: { positionY: number, positionX: number, config: object, type: string, name: string }) => {
+
+      const token = await getToken();
+
+      const response = await fetch(`${BACKEND_URL}/workflow/node/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          workflowId: workflow.id,
+          name,
+          positionY,
+          positionX,
+          config,
+          type
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error("Can't create node");
+      }
+
+    }
+  })
+
+  const getNodeNameByOp = (operation:
+    | 'create_pr_trigger'
+    | 'create_issue_trigger'
+    | 'get_pr_details'
+    | 'add_comment_to_pr'
+    | 'merge_pr'
+    | 'create_issue'
+    | 'list_user_repo'
+  ): string => {
+    switch (operation) {
+      case 'create_pr_trigger':
+        return 'PR Created (Trigger)';
+      case 'create_issue_trigger':
+        return 'Issue Created (Trigger)';
+      case 'get_pr_details':
+        return 'Get Pull Request Details';
+      case 'add_comment_to_pr':
+        return 'Add Comment to PR';
+      case 'merge_pr':
+        return 'Merge Pull Request';
+      case 'create_issue':
+        return 'Create GitHub Issue';
+      case 'list_user_repo':
+        return 'List User Repositories';
+      default:
+        return 'Unknown Operation';
+    }
+  }
+
+
+  const createGithubNodes = async (config: IWorkflowNodeConfig) => {
+    createNodeMutation.mutate({
+      positionX: 0,
+      positionY: 0,
+      config,
+      type: "Trigger",
+      name: getNodeNameByOp(config.operation),
+    })
+  }
+
+  const handleEdgeDelete = async (deletedEdges: Edge[]) => {
+    deletedEdgeMutation.mutate({
+      id: deletedEdges[0].id
+    })
+  }
+
+  const handleAddNode = (config: IWorkflowNodeConfig, type: string) => {
+    switch (type) {
+      case "github":
+        const newConfig: any = { ...config };
+
+        for (const key of Object.keys(config)) {
+          if (["integration", "operation"].includes(key)) continue;
+
+          const newKey = key as keyof IWorkflowNodeConfig;
+          const val = config[newKey];
+
+          if (val && typeof val === "object" && "type" in val) {
+            newConfig[key] = val;
+          } else {
+            newConfig[key] = { type: "static", value: val };
+          }
+        }
+        createGithubNodes(newConfig);
+        break;
+      case "google":
+        console.log("google type");
+        break;
+      default:
+        console.log("default case...");
+    }
+
     const newPosition = {
       x: nodes.length === 0 ? 250 : nodes[0].position.x,
       y: nodes.length === 0 ? 0 : nodes[0].position.y + 150,
@@ -172,6 +346,8 @@ export const Editor: React.FC<EditorProps> = ({ workflow }) => {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onEdgesDelete={handleEdgeDelete}
+          onNodeClick={handleNodeClick}
           fitView
         >
           <Background color="white" gap={12} />
@@ -184,6 +360,7 @@ export const Editor: React.FC<EditorProps> = ({ workflow }) => {
         <NodeSelectorSidebar
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
+          //@ts-ignore
           onAddNode={handleAddNode}
         />
 
@@ -193,6 +370,17 @@ export const Editor: React.FC<EditorProps> = ({ workflow }) => {
             onClick={() => setIsSidebarOpen(false)}
           />
         )}
+
+        {
+          selectedNode !== null ?
+            <NodeConfigDialog
+              // @ts-ignore
+              node={selectedNode}
+              isOpen={isDialogOpen}
+              onClose={() => setIsDialogOpen(false)}
+            /> : ""
+        }
+
 
       </div>
     </div>

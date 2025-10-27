@@ -2,21 +2,36 @@ import type React from "react";
 import { Sidebar } from "../components/dashboard/Sidebar";
 import { WorkflowMain } from "../components/workflow/WorkflowMain";
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import type { WorkflowI } from "../components/dashboard/Workflow";
 import { BACKEND_URL } from "../utils/constants";
 import "@xyflow/react/dist/style.css";
 import { ReactFlowProvider } from "@xyflow/react";
+import { useAuth, useUser } from "@clerk/clerk-react";
 
 export const WorkflowPage: React.FC = () => {
+
+  const navigate = useNavigate();
+  const { isSignedIn } = useUser();
+  if (!isSignedIn) {
+    navigate("/");
+  }
 
   const [searchParams] = useSearchParams();
   const id = searchParams.get("id");
 
+  const { getToken } = useAuth();
+
   const fetchWorkflow = async (): Promise<WorkflowI> => {
     if (!id) throw new Error("Workflow ID is missing");
 
-    const response = await fetch(`${BACKEND_URL}/workflow/${id}`);
+    const token = await getToken();
+
+    const response = await fetch(`${BACKEND_URL}/workflow/workflow/${id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
     if (!response.ok) {
       const errorBody = await response.json();
       throw new Error(errorBody.message || `Request failed with ${response.status}`);

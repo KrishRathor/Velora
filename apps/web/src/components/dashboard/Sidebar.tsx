@@ -1,6 +1,7 @@
 import { FaHome, FaUser, FaProjectDiagram, FaPlusCircle, FaCog, FaQuestionCircle, FaChartLine, FaCodeBranch } from 'react-icons/fa';
 import { BiCube, BiCubeAlt } from 'react-icons/bi';
 import { IoMdMail } from 'react-icons/io';
+import { UserButton, useUser, } from '@clerk/clerk-react';
 
 interface NavItemProps {
   icon: React.ReactNode;
@@ -16,6 +17,9 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, active = false }) => (
 );
 
 export const Sidebar: React.FC = () => {
+
+  const { user } = useUser();
+
   return (
     <div className="flex flex-col h-full w-64 bg-gray-800 text-white p-4">
 
@@ -48,10 +52,8 @@ export const Sidebar: React.FC = () => {
       </nav>
 
       <div className="flex items-center p-3 mt-4 border-t border-gray-700">
-        <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold">
-          KR
-        </div>
-        <span className="ml-3 text-sm font-medium">Krish Rathor</span>
+        <UserButton />
+        <h2 className='ml-2 bolder ' >{user?.firstName} {user?.lastName && user?.lastName}</h2>
       </div>
     </div>
   );

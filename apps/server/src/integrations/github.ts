@@ -87,15 +87,17 @@ export async function mergePR(repoFullName: string, prNumber: number, accessToke
   return res.json();
 }
 
-export async function createIssue(repoFullName: string, title: string, body: string, accessToken: string) {
+export async function createIssue(repoFullName: string, title: string, issueBody: string, accessToken: string) {
+  console.log("insidde create issue: ", title, issueBody);
   const res = await fetch(`https://api.github.com/repos/${repoFullName}/issues`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ title, body }),
+    body: JSON.stringify({ title, body: issueBody }),
   });
+  console.log(await res.json());
   return res.json();
 }
 

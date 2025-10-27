@@ -32,7 +32,6 @@ export const createWorkflowEdgeSchema = z.object({
 
 })
 
-
 const IntegrationsEnum = z.enum(["github", "gmail"]);
 export const OperationsEnum = z.enum([
   "create_pr_trigger",

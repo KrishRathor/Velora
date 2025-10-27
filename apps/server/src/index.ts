@@ -7,23 +7,24 @@ import { workflowNodeRouter } from "./routers/workflowNodeRoute";
 import { workflowEdgeRouter } from "./routers/workflowEdgeRouter";
 import { integrationsConnectRouter } from "./routers/integrationsConnect";
 import { triggerRouter } from "./routers/triggersRouter";
+import { clerkMiddleware, requireAuth } from '@clerk/express'
 
 const app = express();
 
 app.use(cors());
 app.use(logger);
 app.use(express.json());
-
+app.use(clerkMiddleware());
 
 const router = Router()
 
 router.use("/users", userRouter);
 
-router.use("/workflow", workflowRouter);
-router.use("/workflow/edges", workflowEdgeRouter)
-router.use("/workflow/node", workflowNodeRouter);
+router.use("/workflow", requireAuth(), workflowRouter);
+router.use("/workflow/edges", requireAuth(), workflowEdgeRouter)
+router.use("/workflow/node", requireAuth(), workflowNodeRouter);
 
-router.use("/integrations", integrationsConnectRouter);
+router.use("/integrations", requireAuth(), integrationsConnectRouter);
 router.use("/trigger", triggerRouter);
 
 app.use("/api/v1", router);

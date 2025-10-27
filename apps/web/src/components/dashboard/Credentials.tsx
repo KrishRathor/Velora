@@ -5,6 +5,7 @@ import { FaPlusCircle, FaKey, FaTrashAlt } from 'react-icons/fa';
 import { AddCredentialDialog } from './AddCredential';
 import { queryClient } from '../../main';
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from '@clerk/clerk-react';
 
 interface ConfirmDeleteDialogProps {
   isOpen: boolean;
@@ -84,6 +85,7 @@ const scopeColors = [
   'bg-blue-600', 'bg-green-600', 'bg-purple-600', 'bg-yellow-600', 'bg-pink-600', 'bg-teal-600'
 ];
 
+// @ts-ignore
 export const IntegrationCard: React.FC<IntegrationCardProps> = ({ integration, onDelete }) => {
   const scopeArray = integration.scopes
     .split(',')
@@ -91,11 +93,17 @@ export const IntegrationCard: React.FC<IntegrationCardProps> = ({ integration, o
     .filter(scope => scope.length > 0);
 
   const fullAccessToken = integration.accessToken;
+  const { getToken } = useAuth();
 
   const deleteIntegration = async (integrationId: string) => {
+    const token = await getToken();
+
     const response = await fetch(`${BACKEND_URL}/integrations/delete/${integrationId}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
     });
 
     if (!response.ok) {
@@ -129,6 +137,7 @@ export const IntegrationCard: React.FC<IntegrationCardProps> = ({ integration, o
     mutationFn: deleteIntegration,
     onSuccess: (_, deletedId) => {
       console.log(deletedId);
+      // @ts-ignore
       queryClient.invalidateQueries(['integrations', 'user']);
     },
   });
@@ -178,12 +187,18 @@ export const IntegrationCard: React.FC<IntegrationCardProps> = ({ integration, o
 export const CredentialsContent: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  const { getToken } = useAuth();
+
   const fetchIntegrations = async () => {
-    const token = localStorage.getItem("token");
+    const token = await getToken();
     if (!token) {
       return Promise.resolve({ message: 'No Token', response: [] }); // Return empty response structure
     }
-    const response = await fetch(`${BACKEND_URL}/integrations/${token}`);
+    const response = await fetch(`${BACKEND_URL}/integrations/${token}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
     if (!response.ok) {
       const errorBody = await response.json();
       throw new Error(errorBody.message || `Request failed with status ${response.status}`);
@@ -203,7 +218,7 @@ export const CredentialsContent: React.FC = () => {
   });
 
   const connectToGithub = async () => {
-    const token = localStorage.getItem("token");
+    const token = await getToken();
     if (!token) {
       return Promise.resolve({ message: 'No Token', response: [] });
     }
@@ -212,6 +227,7 @@ export const CredentialsContent: React.FC = () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
       }
     });
     if (!response.ok) {

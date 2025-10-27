@@ -1,8 +1,17 @@
-import { errorObject, type Job } from "bullmq";
+import { type Job } from "bullmq";
 import { prisma } from "../db/db";
 import { addCommentToPR, createIssue, getPRDetails, listUserRepos, mergePR } from "../integrations/github";
 import { nodeQueue } from ".";
 import { WorkflowNodeConfigSchema, type NodeQueuePayload } from "../types/workflow.type";
+
+function toStringSafe(value: any) {
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
 
 export const proccessJob = async (job: Job) => {
 
@@ -39,6 +48,7 @@ export const proccessJob = async (job: Job) => {
 
     switch (integration) {
       case "github":
+        // @ts-ignore
         await handleGithubJobs(newpayload);
         break
     }
@@ -78,6 +88,24 @@ const handleGithubJobs = async (payload: NodeQueuePayload) => {
     } else {
       if (config.comment?.field && result) {
         comment = result[config.comment.field];
+      }
+    }
+
+    let issueTitle;
+    if (config.issueTitle?.type === "static") {
+      issueTitle = config.issueTitle.value;
+    } else {
+      if (config.issueTitle?.field && result) {
+        issueTitle = result[config.issueTitle.field];
+      }
+    }
+
+    let issueBody;
+    if (config.issueBody?.type === "static") {
+      issueBody = config.issueBody.value;
+    } else {
+      if (config.issueBody?.field && result) {
+        issueBody = result[config.issueBody.field];
       }
     }
 
@@ -133,6 +161,10 @@ const handleGithubJobs = async (payload: NodeQueuePayload) => {
           throw new Error(`No repo provided ${config.comment}`);
         }
 
+        if (typeof comment !== "string") {
+          comment = toStringSafe(comment);
+        }
+
         await addCommentToPR(repo, Number(prNumber), comment, accessToken)
 
         edges.map(edge => {
@@ -154,7 +186,9 @@ const handleGithubJobs = async (payload: NodeQueuePayload) => {
         break;
       case "merge_pr":
 
-        await mergePR(repo, Number(result?.prNumber!), accessToken)
+        if (!repo) return;
+
+        await mergePR(repo, Number(prNumber), accessToken)
 
         edges.map(edge => {
           const payload: NodeQueuePayload = {
@@ -176,10 +210,14 @@ const handleGithubJobs = async (payload: NodeQueuePayload) => {
         break;
       case "create_issue":
 
-        const title = config.issueTitle!;
-        const body = config.issueBody!;
+        console.log(repo, issueTitle, issueBody, accessToken);
 
-        await createIssue(repo, title, body, accessToken)
+        if (!repo || !issueTitle || !issueBody || !accessToken) return;
+        if (typeof issueBody !== "string") {
+          issueBody = toStringSafe(issueBody);
+        }
+
+        await createIssue(repo, issueTitle, issueBody, accessToken)
 
         edges.map(edge => {
           const payload: NodeQueuePayload = {

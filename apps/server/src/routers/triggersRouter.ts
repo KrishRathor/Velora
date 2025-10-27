@@ -4,6 +4,7 @@ import { createIssueTrigger, createPRTrigger } from "../integrations/github";
 import { prisma } from "../db/db";
 import { Ops, WorkflowNodeConfigSchema, } from "../types/workflow.type";
 import { nodeQueue } from "../queue";
+import edge from "../generated/prisma/runtime/edge";
 
 export const triggerRouter = Router();
 
@@ -22,6 +23,8 @@ triggerRouter.post("/set/:id", async (req: Request, res: Response) => {
       return;
     }
 
+    console.log("atleast here");
+
     const node = await prisma.workflowNode.findFirst({
       where: {
         id
@@ -38,13 +41,15 @@ triggerRouter.post("/set/:id", async (req: Request, res: Response) => {
 
     const config = node.config;
 
+    console.log(config);
+
     const parsedConfig = WorkflowNodeConfigSchema.safeParse(config);
 
     if (parsedConfig.error) {
       console.log(parsedConfig.error);
       res.status(HttpStatus.BAD_REQUEST).json({
         message: "Invalid body",
-        response: null
+        response: config
       })
       return;
     }
@@ -55,7 +60,9 @@ triggerRouter.post("/set/:id", async (req: Request, res: Response) => {
       integration
     } = parsedConfig.data;
 
-    if (!repo) {
+    const reponame = repo?.type === "static" && repo.value;
+
+    if (!reponame) {
       res.status(HttpStatus.BAD_REQUEST).json({
         message: `${integration} not supported`,
         response: null
@@ -66,7 +73,7 @@ triggerRouter.post("/set/:id", async (req: Request, res: Response) => {
     switch (integration) {
       case "github":
         //@ts-ignore
-        await handleGithubTriggers(res, repo, operation, node.id);
+        await handleGithubTriggers(res, reponame, operation, node.id);
         break
       case "gmail":
       default:
@@ -104,7 +111,7 @@ const handleGithubTriggers = async (res: Response, repo: string, operation: Ops,
   switch (operation) {
     // @ts-ignore
     case "create_pr_trigger":
-      await createPRTrigger(repo, `https://000cdbc03e6a.ngrok-free.app/api/v1/trigger/get/github/${nodeId}`, integration.accessToken);
+      await createPRTrigger(repo, `https://6dc3555e92dc.ngrok-free.app/api/v1/trigger/get/github/${nodeId}`, integration.accessToken);
       res.status(HttpStatus.OK)
       break;
     // @ts-ignore
@@ -128,7 +135,11 @@ const handleGithubTriggers = async (res: Response, repo: string, operation: Ops,
 triggerRouter.post("/get/github/:id", async (req: Request, res: Response) => {
   try {
 
+    console.log("inside get github");
+
     const { id } = req.params;
+
+    console.log(id);
 
     if (typeof id !== "string") {
       res.status(HttpStatus.BAD_REQUEST).json({
@@ -171,6 +182,8 @@ triggerRouter.post("/get/github/:id", async (req: Request, res: Response) => {
       }
     })
 
+    if (id === "d5c99be2-a331-4a4b-aba1-674b186bba9d") console.log(id, "=============>>>>>>>>>>", integration);
+
     if (!integration) {
       res.status(HttpStatus.BAD_REQUEST).json({
         message: "integration not found",
@@ -200,6 +213,8 @@ triggerRouter.post("/get/github/:id", async (req: Request, res: Response) => {
 
     const operation = parsedConfig.data.operation;
     const accessToken = integration.accessToken;
+
+    if (id === "d5c99be2-a331-4a4b-aba1-674b186bba9d") console.log(id, operation, accessToken);
 
     let payload = {};
 
@@ -240,7 +255,7 @@ triggerRouter.post("/get/github/:id", async (req: Request, res: Response) => {
               prId
             }
           }
-          console.log("adding to queue ", payload);
+          if (id === "d5c99be2-a331-4a4b-aba1-674b186bba9d") console.log("adding to queue ", payload);
           nodeQueue.add("node", payload);
         })
         break

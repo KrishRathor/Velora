@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { HttpStatus } from "../types";
 import { prisma } from "../db/db";
 import { config } from "dotenv";
+import { getAuth } from "@clerk/express";
 
 config();
 
@@ -9,7 +10,8 @@ export const integrationsConnectRouter = Router();
 
 integrationsConnectRouter.get("/:id", async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+
+    const id = getAuth(req).userId;
 
     if (typeof id !== "string") {
       res.status(HttpStatus.BAD_REQUEST).json({
@@ -101,7 +103,7 @@ integrationsConnectRouter.get("/connect/github/callback", async (req: Request, r
 
     //     const userId = req.body.userId;
 
-    const userId = "a9acd259-4b26-4a32-9d67-35138c462889";
+    const { userId } = getAuth(req);
 
     if (typeof userId !== "string") {
       res.status(HttpStatus.BAD_REQUEST).json({

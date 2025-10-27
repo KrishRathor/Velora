@@ -7,6 +7,7 @@ import { CreateWorkflowDialog } from "./CreateWorkflowDialog";
 import { useNavigate } from "react-router-dom";
 import { queryClient } from "../../main";
 import { WorkflowCard } from "./WorkflowCard";
+import { useAuth, useUser } from "@clerk/clerk-react";
 
 export interface WorkflowI {
   id: string;
@@ -31,10 +32,13 @@ export const WorkflowsContent: React.FC = () => {
   const createWorkflow = useMutation({
     mutationFn: async () => {
       try {
+        const token = await getToken();
+
         const response = await fetch(`${BACKEND_URL}/workflow/create`, {
           method: 'POST',
           headers: {
             'Content-type': 'application/json',
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             name,
@@ -72,28 +76,42 @@ export const WorkflowsContent: React.FC = () => {
     description
   }
 
+  const { user, isLoaded } = useUser();
+  const { getToken } = useAuth();
+
   const { data, isError, isPending, error } = useQuery({
-    queryKey: ['workflow', 'user'],
+    queryKey: ['workflow', 'user', user?.id],
     queryFn: async () => {
       try {
+        if (!user) {
+          throw new Error("unauth")
+        }
 
-        const userId = localStorage.getItem("token");
-        const response = await fetch(`${BACKEND_URL}/workflow/user/${userId}`);
+        const token = await getToken();
 
-        const data = await response.json();
+        const response = await fetch(`${BACKEND_URL}/workflow/user`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          }
+        });
 
         if (!response.ok) {
-          throw new Error(data.message);
+          throw new Error();
         }
+        const data = await response.json();
+
         return data.response;
       } catch (error) {
         console.log(error);
       }
     },
-    enabled: !!localStorage.getItem("token")
+    enabled: isLoaded!!
   })
 
-  const workflows = data as WorkflowI[];
+  let workflows = [] as WorkflowI[];
+  if (data) {
+    workflows = data as WorkflowI[];
+  }
 
   if (isPending) return <div>Loading...</div>
   if (isError) return <div>{error.message}</div>

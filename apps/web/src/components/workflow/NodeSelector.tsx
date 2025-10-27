@@ -1,5 +1,17 @@
 import React, { useMemo, useState } from 'react';
-import { FaTimes, FaMousePointer, FaClock, FaCalendarAlt, FaEnvelopeOpenText, FaRunning, FaSearch, FaLink, FaArrowLeft, FaToggleOn, FaToggleOff } from 'react-icons/fa';
+import {
+  FaTimes,
+  FaMousePointer,
+  FaClock,
+  FaCalendarAlt,
+  FaEnvelopeOpenText,
+  FaRunning,
+  FaSearch,
+  FaLink,
+  FaArrowLeft,
+  FaToggleOn,
+  FaToggleOff
+} from 'react-icons/fa';
 
 export enum SidebarView {
   MAIN_TRIGGERS,
@@ -7,52 +19,97 @@ export enum SidebarView {
   OPERATION_CONFIG,
 }
 
-export enum Integration {
-  GITHUB = "github",
-  GMAIL = "gmail",
+export type Integration = 'github' | 'gmail' | 'airtable' | 'notion';
+
+export type Ops =
+  | 'create_pr_trigger'
+  | 'create_issue_trigger'
+  | 'get_pr_details'
+  | 'add_comment_to_pr'
+  | 'merge_pr'
+  | 'create_issue'
+  | 'list_user_repo'
+  | 'send_email'
+  | 'watch_email';
+
+export interface NodeQueuePayload {
+  workflowId: string;
+  node: string;
+  prevNode?: string;
+  prevNodeOperation?:
+  | 'create_pr_trigger'
+  | 'create_issue_trigger'
+  | 'get_pr_details'
+  | 'add_comment_to_pr'
+  | 'merge_pr'
+  | 'create_issue'
+  | 'list_user_repo';
+  integration: Integration;
+  operation:
+  | 'create_pr_trigger'
+  | 'create_issue_trigger'
+  | 'get_pr_details'
+  | 'add_comment_to_pr'
+  | 'merge_pr'
+  | 'create_issue'
+  | 'list_user_repo';
+  accessToken: string;
+  config: IWorkflowNodeConfig;
+  result?: {
+    prNumber?: number;
+    prId?: string | number;
+    prUrl?: string;
+  };
 }
 
-export enum Ops {
-  CREATE_PR_TRIGGER = "create_pr_trigger",
-  CREATE_ISSUE_TRIGGER = "create_issue_trigger",
-  GET_PR_DETAILS = "get_pr_details",
-  ADD_COMMENT_TO_PR = "add_comment_to_pr",
-  MERGE_PR = "merge_pr",
-  CREATE_ISSUE = "create_issue",
-  LIST_USER_REPO = "list_user_repo",
-}
+export type ValueOrDynamic<T = any> =
+  | { type: 'static'; value: T }
+  | { type: 'dynamic'; nodeId: string; field: keyof NodeQueuePayload['result'] };
 
 export interface IWorkflowNodeConfig {
   integration: Integration;
-  operation: Ops;
-  repo?: string;
-  prNumber?: string;
-  comment?: string;
-  issueTitle?: string;
-  issueBody?: string;
-  condition?: string;
+  operation:
+  | 'create_pr_trigger'
+  | 'create_issue_trigger'
+  | 'get_pr_details'
+  | 'add_comment_to_pr'
+  | 'merge_pr'
+  | 'create_issue'
+  | 'list_user_repo';
+  repo?: string | ValueOrDynamic<string>;
+  prNumber?: string | ValueOrDynamic<string>;
+  comment?: string | ValueOrDynamic<string>;
+  issueTitle?: string | ValueOrDynamic<string>;
+  issueBody?: string | ValueOrDynamic<string>;
+  condition?: string | ValueOrDynamic<string>;
 }
 
 const availableIntegrations = [
-  { name: 'GitHub', value: Integration.GITHUB, icon: <FaEnvelopeOpenText className="text-gray-400" /> },
-  { name: 'Gmail', value: Integration.GMAIL, icon: <FaEnvelopeOpenText className="text-gray-400" /> },
+  { name: 'GitHub', value: 'github' as Integration, icon: <FaEnvelopeOpenText className="text-gray-400" /> },
+  { name: 'Gmail', value: 'gmail' as Integration, icon: <FaEnvelopeOpenText className="text-gray-400" /> },
   { name: 'Airtable', value: 'airtable' as Integration, icon: <FaEnvelopeOpenText className="text-gray-400" /> },
   { name: 'Notion', value: 'notion' as Integration, icon: <FaEnvelopeOpenText className="text-gray-400" /> },
 ];
 
-const integrationOps: Record<Integration, { title: string, value: Ops }[]> = {
-  [Integration.GITHUB]: [
-    { title: 'Create PR Trigger', value: Ops.CREATE_PR_TRIGGER },
-    { title: 'Create Issue Trigger', value: Ops.CREATE_ISSUE_TRIGGER },
-    { title: 'Get PR Details', value: Ops.GET_PR_DETAILS },
-    { title: 'Add Comment to PR', value: Ops.ADD_COMMENT_TO_PR },
-    { title: 'Merge PR', value: Ops.MERGE_PR },
-    { title: 'Create Issue', value: Ops.CREATE_ISSUE },
-    { title: 'List User Repos', value: Ops.LIST_USER_REPO },
+const integrationOps: Record<Integration, { title: string; value: Ops }[]> = {
+  github: [
+    { title: 'Create PR Trigger', value: 'create_pr_trigger' },
+    { title: 'Create Issue Trigger', value: 'create_issue_trigger' },
+    { title: 'Get PR Details', value: 'get_pr_details' },
+    { title: 'Add Comment to PR', value: 'add_comment_to_pr' },
+    { title: 'Merge PR', value: 'merge_pr' },
+    { title: 'Create Issue', value: 'create_issue' },
+    { title: 'List User Repos', value: 'list_user_repo' },
   ],
-  [Integration.GMAIL]: [
-    { title: 'Send Email', value: 'send_email' as Ops },
-    { title: 'Watch New Email', value: 'watch_email' as Ops },
+  gmail: [
+    { title: 'Send Email', value: 'send_email' },
+    { title: 'Watch New Email', value: 'watch_email' },
+  ],
+  airtable: [
+    { title: 'Watch Records', value: 'watch_email' as Ops }, // placeholder mapping
+  ],
+  notion: [
+    { title: 'Watch Pages', value: 'watch_email' as Ops }, // placeholder mapping
   ],
 };
 
@@ -74,68 +131,91 @@ const mainTriggerItems: NodeItem[] = [
 interface NodeSelectorSidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  // Updated signature to include type for non-App triggers
   onAddNode: (config: IWorkflowNodeConfig | Partial<IWorkflowNodeConfig>, type: string) => void;
 }
 
-// --- DYNAMIC FORM INPUT COMPONENT ---
-
 interface DynamicFormInputProps {
   label: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  value?: string | ValueOrDynamic<string>;
+  onChange: (val: string | ValueOrDynamic<string>) => void;
   placeholder?: string;
   type?: 'text' | 'textarea';
   isDynamic: boolean;
   setIsDynamic: (isDynamic: boolean) => void;
 }
 
-const DynamicFormInput: React.FC<DynamicFormInputProps> = ({
+export const DynamicFormInput: React.FC<DynamicFormInputProps> = ({
   label,
   value,
   onChange,
   placeholder,
   type = 'text',
   isDynamic,
-  setIsDynamic
+  setIsDynamic,
 }) => {
+  const staticValue =
+    typeof value === 'string'
+      ? value
+      : value?.type === 'static'
+        ? value.value
+        : '';
 
-  const ToggleButton = () => (
-    <button
-      type="button"
-      onClick={() => setIsDynamic(!isDynamic)}
-      className="flex items-center text-xs font-medium text-gray-400 hover:text-white transition-colors"
-      title={isDynamic ? 'Switch to Static Value' : 'Switch to Dynamic Expression'}
-    >
-      {isDynamic ? (
-        <FaToggleOn className="text-green-500 mr-1 text-lg" />
-      ) : (
-        <FaToggleOff className="text-gray-500 mr-1 text-lg" />
-      )}
-      {isDynamic ? 'Expression' : 'Static'}
-    </button>
-  );
+  const dynamicField =
+    typeof value === 'object' && value?.type === 'dynamic'
+      ? value.field
+      : 'prId';
+
+  const handleStaticChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    onChange(e.target.value);
+  };
+
+  const handleDynamicChange = (field: string) => {
+    onChange({
+      type: 'dynamic',
+      nodeId: '', // nodeId removed from UI, but kept empty for schema consistency
+      // @ts-ignore
+      field,
+    });
+  };
+
+  const handleToggle = () => {
+    setIsDynamic(!isDynamic);
+    if (!isDynamic) {
+      // @ts-ignore
+      onChange({ type: 'dynamic', nodeId: '', field: 'prId' });
+    } else {
+      onChange('');
+    }
+  };
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col space-y-1">
       <div className="flex justify-between items-center mb-1">
         <label className="text-sm font-medium text-gray-300">{label}</label>
-        <ToggleButton />
+        <button
+          type="button"
+          onClick={handleToggle}
+          className="flex items-center text-xs font-medium text-gray-400 hover:text-white transition-colors"
+        >
+          {isDynamic ? (
+            <>
+              <FaToggleOn className="text-green-500 mr-1 text-lg" /> Dynamic
+            </>
+          ) : (
+            <>
+              <FaToggleOff className="text-gray-500 mr-1 text-lg" /> Static
+            </>
+          )}
+        </button>
       </div>
 
-      {isDynamic ? (
-        <input
-          type="text"
-          value={value}
-          onChange={onChange} // Reusing onChange since value is handled by parent state
-          placeholder={`e.g., {{ $json.pr_id }}`}
-          className="bg-indigo-900/40 border border-indigo-500 rounded-md text-yellow-300 font-mono p-2 placeholder-indigo-300/70 focus:ring-indigo-500 focus:border-indigo-500"
-        />
-      ) : (
+      {!isDynamic ? (
         type === 'textarea' ? (
           <textarea
-            value={value}
-            onChange={onChange}
+            value={staticValue}
+            onChange={handleStaticChange}
             placeholder={placeholder}
             rows={4}
             className="bg-gray-700 border border-gray-600 rounded-md text-white p-2 placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
@@ -143,27 +223,33 @@ const DynamicFormInput: React.FC<DynamicFormInputProps> = ({
         ) : (
           <input
             type="text"
-            value={value}
-            onChange={onChange}
+            value={staticValue}
+            onChange={handleStaticChange}
             placeholder={placeholder}
             className="bg-gray-700 border border-gray-600 rounded-md text-white p-2 placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500"
           />
         )
+      ) : (
+        <select
+          value={dynamicField}
+          onChange={(e) => handleDynamicChange(e.target.value)}
+          className="bg-indigo-900/40 border border-indigo-500 rounded-md text-yellow-300 font-mono p-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          <option value="prId">prId</option>
+          <option value="prNumber">prNumber</option>
+          <option value="prUrl">prUrl</option>
+        </select>
       )}
     </div>
   );
 };
 
 
-// --- NODE SELECTOR SIDEBAR COMPONENT ---
-
 export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({ isOpen, onClose, onAddNode }) => {
-
   const [view, setView] = useState<SidebarView>(SidebarView.MAIN_TRIGGERS);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentConfig, setCurrentConfig] = useState<Partial<IWorkflowNodeConfig>>({});
-  // NEW STATE: Tracks which fields are currently toggled to be dynamic
-  const [dynamicFields, setDynamicFields] = useState<Record<keyof IWorkflowNodeConfig, boolean>>({});
+  const [dynamicFields, setDynamicFields] = useState<Partial<Record<keyof IWorkflowNodeConfig, boolean>>>({});
 
   const filteredApps = useMemo(() => {
     return availableIntegrations.filter(app =>
@@ -184,7 +270,6 @@ export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({ isOpen
       setSearchTerm('');
       setCurrentConfig({});
     } else {
-      // Simple triggers just create a node
       onAddNode({}, type);
       onClose();
     }
@@ -197,10 +282,11 @@ export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({ isOpen
   };
 
   const handleOpSelect = (operation: Ops) => {
+    // @ts-ignore
     setCurrentConfig(prev => ({
       ...prev,
       operation,
-      // Only set the initial values for the form to ensure they exist in currentConfig
+      // initialize editable plain strings so DynamicFormInput can show strings
       repo: prev.repo ?? '',
       issueTitle: prev.issueTitle ?? '',
       comment: prev.comment ?? '',
@@ -210,13 +296,11 @@ export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({ isOpen
   };
 
   const handleCreateNode = () => {
-    const { integration, operation } = currentConfig;
+    const { integration, operation } = currentConfig as IWorkflowNodeConfig;
 
     if (integration && operation) {
-      // For App-based nodes, the type is usually the integration name
-      const nodeType = currentConfig.integration;
+      const nodeType = currentConfig.integration as string;
       onAddNode(currentConfig as IWorkflowNodeConfig, nodeType);
-
       setCurrentConfig({});
       setDynamicFields({});
       setView(SidebarView.MAIN_TRIGGERS);
@@ -226,9 +310,29 @@ export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({ isOpen
     }
   };
 
-  // Handler for the dynamic/static toggle
   const handleToggleDynamic = (key: keyof IWorkflowNodeConfig, isDynamic: boolean) => {
     setDynamicFields(prev => ({ ...prev, [key]: isDynamic }));
+    // also convert existing value shape when toggling
+    setCurrentConfig(prev => {
+      const existing = prev[key];
+      if (isDynamic) {
+        // if switching to dynamic and existing is string -> create a dynamic placeholder
+        if (typeof existing === 'string' || existing === undefined) {
+          return { ...prev, [key]: { type: 'dynamic', nodeId: '', field: 'prId' } as ValueOrDynamic<string> };
+        }
+        return prev;
+      } else {
+        // switching to static: if existing is ValueOrDynamic, set to its static string or empty
+        if (existing && typeof existing !== 'string' && existing.type === 'static') {
+          return { ...prev, [key]: String(existing.value) };
+        }
+        // if dynamic, convert to empty string
+        if (existing && typeof existing !== 'string' && existing.type === 'dynamic') {
+          return { ...prev, [key]: '' };
+        }
+        return prev;
+      }
+    });
   };
 
   const renderHeaderTitle = () => {
@@ -290,7 +394,7 @@ export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({ isOpen
         );
 
       case SidebarView.OPERATION_CONFIG:
-        const { operation } = currentConfig;
+        const { operation } = currentConfig as Partial<IWorkflowNodeConfig>;
 
         if (!operation) {
           return (
@@ -312,17 +416,17 @@ export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({ isOpen
             </div>
           );
         } else {
-          const opTitle = integrationOps[currentConfig.integration as Integration]?.find(op => op.value === operation)?.title || operation;
+          const opTitle = integrationOps[currentConfig.integration as Integration]?.find(op => op.value === operation)?.title || String(operation);
 
           const requiredFields = {
-            repo: [Ops.CREATE_ISSUE, Ops.CREATE_PR_TRIGGER, Ops.CREATE_ISSUE_TRIGGER, Ops.LIST_USER_REPO, Ops.GET_PR_DETAILS].includes(operation),
-            prNumber: [Ops.GET_PR_DETAILS, Ops.ADD_COMMENT_TO_PR, Ops.MERGE_PR].includes(operation),
-            issueTitle: [Ops.CREATE_ISSUE].includes(operation),
-            issueBody: [Ops.CREATE_ISSUE].includes(operation),
-            comment: [Ops.ADD_COMMENT_TO_PR].includes(operation),
+            repo: ['create_issue', 'create_pr_trigger', 'create_issue_trigger', 'list_user_repo', 'get_pr_details'].includes(operation as string),
+            prNumber: ['get_pr_details', 'add_comment_to_pr', 'merge_pr'].includes(operation as string),
+            issueTitle: ['create_issue'].includes(operation as string),
+            issueBody: ['create_issue'].includes(operation as string),
+            comment: ['add_comment_to_pr'].includes(operation as string),
           };
 
-          const handleFieldChange = (key: keyof IWorkflowNodeConfig, value: string) => {
+          const handleFieldChange = (key: keyof IWorkflowNodeConfig, value: string | ValueOrDynamic<string>) => {
             setCurrentConfig(prev => ({ ...prev, [key]: value }));
           };
 
@@ -336,9 +440,9 @@ export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({ isOpen
                 {requiredFields.repo && (
                   <DynamicFormInput
                     label="Repository Name"
-                    value={currentConfig.repo || ''}
-                    onChange={(e) => handleFieldChange('repo', e.target.value)}
-                    isDynamic={dynamicFields.repo || false}
+                    value={currentConfig.repo}
+                    onChange={(val) => handleFieldChange('repo', val)}
+                    isDynamic={!!dynamicFields.repo}
                     setIsDynamic={(isD) => handleToggleDynamic('repo', isD)}
                     placeholder="owner/repo-name"
                   />
@@ -346,9 +450,9 @@ export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({ isOpen
                 {requiredFields.prNumber && (
                   <DynamicFormInput
                     label="Pull Request Number"
-                    value={currentConfig.prNumber || ''}
-                    onChange={(e) => handleFieldChange('prNumber', e.target.value)}
-                    isDynamic={dynamicFields.prNumber || false}
+                    value={currentConfig.prNumber}
+                    onChange={(val) => handleFieldChange('prNumber', val)}
+                    isDynamic={!!dynamicFields.prNumber}
                     setIsDynamic={(isD) => handleToggleDynamic('prNumber', isD)}
                     placeholder="e.g., 42"
                   />
@@ -356,9 +460,9 @@ export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({ isOpen
                 {requiredFields.issueTitle && (
                   <DynamicFormInput
                     label="Issue Title"
-                    value={currentConfig.issueTitle || ''}
-                    onChange={(e) => handleFieldChange('issueTitle', e.target.value)}
-                    isDynamic={dynamicFields.issueTitle || false}
+                    value={currentConfig.issueTitle}
+                    onChange={(val) => handleFieldChange('issueTitle', val)}
+                    isDynamic={!!dynamicFields.issueTitle}
                     setIsDynamic={(isD) => handleToggleDynamic('issueTitle', isD)}
                     placeholder="New Feature Idea"
                   />
@@ -367,9 +471,9 @@ export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({ isOpen
                   <DynamicFormInput
                     label="Issue Body"
                     type="textarea"
-                    value={currentConfig.issueBody || ''}
-                    onChange={(e) => handleFieldChange('issueBody', e.target.value)}
-                    isDynamic={dynamicFields.issueBody || false}
+                    value={currentConfig.issueBody}
+                    onChange={(val) => handleFieldChange('issueBody', val)}
+                    isDynamic={!!dynamicFields.issueBody}
                     setIsDynamic={(isD) => handleToggleDynamic('issueBody', isD)}
                     placeholder="Detailed description..."
                   />
@@ -378,22 +482,13 @@ export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({ isOpen
                   <DynamicFormInput
                     label="Comment Body"
                     type="textarea"
-                    value={currentConfig.comment || ''}
-                    onChange={(e) => handleFieldChange('comment', e.target.value)}
-                    isDynamic={dynamicFields.comment || false}
+                    value={currentConfig.comment}
+                    onChange={(val) => handleFieldChange('comment', val)}
+                    isDynamic={!!dynamicFields.comment}
                     setIsDynamic={(isD) => handleToggleDynamic('comment', isD)}
                     placeholder="Type your comment here..."
                   />
                 )}
-                {/* You can add a static condition field if needed: */}
-                {/* <DynamicFormInput 
-                                    label="Condition (Expression)" 
-                                    value={currentConfig.condition || ''}
-                                    onChange={(e) => handleFieldChange('condition', e.target.value)}
-                                    isDynamic={true}
-                                    setIsDynamic={() => {}}
-                                    placeholder="{{ $json.status === 'approved' }}"
-                                /> */}
               </div>
 
               <button
@@ -456,3 +551,4 @@ export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({ isOpen
     </div>
   );
 };
+
