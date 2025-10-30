@@ -57,6 +57,8 @@ solanaTriggerRouter.post("/set/:nodeId", requireAuth() ,async (req: Request, res
       return
     }
 
+    console.log("backend url =========>>>>>>>>>>> ", BACKEND_URL);
+
     const url = `https://api.helius.xyz/v0/webhooks?api-key=${APIKEY}`;
     const body = {
       webhookURL: `${BACKEND_URL}/api/v1/solana/trigger/get/${nodeId}`,
