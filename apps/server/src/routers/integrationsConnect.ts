@@ -144,10 +144,9 @@ integrationsConnectRouter.get("/connect/github/callback", async (req: Request, r
           updatedAt: new Date()
         }
       })
-      res.status(HttpStatus.OK).json({
-        message: "Tokens updated",
-        response: update.id
-      })
+      
+    res.redirect(`${FRONTEND_URL}/dashboard`)
+
       return
     }
 
@@ -161,10 +160,7 @@ integrationsConnectRouter.get("/connect/github/callback", async (req: Request, r
       }
     })
 
-    res.status(HttpStatus.OK).json({
-      message: "Created",
-      response: create.id
-    })
+    res.redirect(`${FRONTEND_URL}/dashboard`)
 
 
   } catch (error) {
@@ -258,10 +254,9 @@ integrationsConnectRouter.get("/connect/google/callback", async (req: Request, r
         },
       });
 
-      res.status(HttpStatus.OK).json({
-        message: "Tokens updated",
-        response: update.id,
-      });
+      
+    res.redirect(`${FRONTEND_URL}/dashboard`)
+
       return;
     }
 
@@ -276,10 +271,9 @@ integrationsConnectRouter.get("/connect/google/callback", async (req: Request, r
       },
     });
 
-    res.status(HttpStatus.OK).json({
-      message: "Created",
-      response: create.id,
-    });
+    
+    res.redirect(`${FRONTEND_URL}/dashboard`)
+
   } catch (error) {
     console.error(error);
     res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({

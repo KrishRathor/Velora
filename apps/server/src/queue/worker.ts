@@ -54,12 +54,12 @@ export const proccessJob = async (job: Job) => {
 
     const int = await prisma.integrationConnection.findFirst({
       where: {
-        provider: "github",
+        provider: integration,
         userId: workflow.userId
       }
     })
     if (!int) {
-      console.log("github not supported");
+      console.log(`${integration} not supported`);
       return;
     }
     const accessToken = int?.accessToken;
@@ -366,6 +366,7 @@ const handleSolanaJobs = async (payload: NodeQueuePayload) => {
 
 const handleGoogleJobs = async (payload: NodeQueuePayload) => {
 
+  console.log("inside google jovs");
   const { result, config, operation, node, accessToken, workflowId, refreshToken } = payload;
 
   const edges = await prisma.workflowEdge.findMany({
@@ -377,22 +378,24 @@ const handleGoogleJobs = async (payload: NodeQueuePayload) => {
   switch (operation) {
     case "send_mail":
 
+      console.log("inside send_mail")
+
       const { toEmail, subject, message } = config;
       let to = "", sub = "", msg = "";
       if (toEmail?.type === "static") {
-        to = toEmail.type;
+        to = toEmail.value;
       } else if (toEmail?.type === "dynamic" && result) {
         to = result[toEmail?.field]
       }
 
       if (subject?.type === "static") {
-        sub = subject.type;
+        sub = subject.value;
       } else if (subject?.type === "dynamic" && result) {
         sub = result[subject?.field]
       }
 
       if (message?.type === "static") {
-        sub = message.type;
+        sub = message.value;
       } else if (message?.type === "dynamic" && result) {
         sub = result[message?.field]
       }
@@ -400,6 +403,8 @@ const handleGoogleJobs = async (payload: NodeQueuePayload) => {
       if (!refreshToken) {
         return
       }
+
+      console.log(accessToken, refreshToken, to, sub, msg);
 
       await sendEmail(to, sub, msg, accessToken, refreshToken);
 

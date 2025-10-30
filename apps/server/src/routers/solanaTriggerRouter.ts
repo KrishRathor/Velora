@@ -11,6 +11,7 @@ import { requireAuth } from "@clerk/express";
 config();
 
 const APIKEY = process.env.HELIUS_API_KEY
+const BACKEND_URL = process.env.BACKEND_URL
 
 export const solanaTriggerRouter = Router();
 
@@ -31,6 +32,7 @@ solanaTriggerRouter.post("/set/:nodeId", requireAuth() ,async (req: Request, res
     const parsedData = SolanaTriggerSetSchema.safeParse(req.body);
 
     if (parsedData.error) {
+      console.log(parsedData.error);
       res.status(HttpStatus.BAD_REQUEST).json({
         message: "Invlaid type",
         response: parsedData.error
@@ -47,6 +49,7 @@ solanaTriggerRouter.post("/set/:nodeId", requireAuth() ,async (req: Request, res
     })
 
     if (!node) {
+      console.log("node not found");
       res.status(HttpStatus.NOT_FOUND).json({
         message: "Node not found",
         response: null
@@ -56,7 +59,7 @@ solanaTriggerRouter.post("/set/:nodeId", requireAuth() ,async (req: Request, res
 
     const url = `https://api.helius.xyz/v0/webhooks?api-key=${APIKEY}`;
     const body = {
-      webhookURL: `https://60bf13792503.ngrok-free.app/api/v1/solana/trigger/get/${nodeId}`,
+      webhookURL: `${BACKEND_URL}/api/v1/solana/trigger/get/${nodeId}`,
       transactionTypes: Array.isArray(transactionTypes)
         ? transactionTypes
         : [transactionTypes],
@@ -96,6 +99,8 @@ solanaTriggerRouter.post("/set/:nodeId", requireAuth() ,async (req: Request, res
 solanaTriggerRouter.post("/get/:nodeId", async (req: Request, res: Response) => {
   try {
 
+    console.log(req.body);
+
     const { nodeId } = req.params;
 
     if (typeof nodeId !== "string") {
@@ -106,7 +111,7 @@ solanaTriggerRouter.post("/get/:nodeId", async (req: Request, res: Response) => 
       return
     }
 
-    const type = req.body.type;
+    const type = req.body[0].type;
 
     switch (type) {
       case "TRANSFER":

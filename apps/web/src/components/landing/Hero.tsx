@@ -1,101 +1,77 @@
+import { SignedIn, SignedOut, SignInButton } from "@clerk/clerk-react";
+import { useNavigate } from "react-router-dom";
 
-import { Logo } from '../ui/Logo';
-
-export default function Hero() {
+export const Hero: React.FC = () => {
+  const navigate = useNavigate()
+  const ctaClasses = "px-8 cursor-pointer py-4 text-lg font-semibold text-white transition duration-300 rounded-xl shadow-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 transform hover:scale-[1.02] focus:outline-none focus:ring-4 focus:ring-purple-500 focus:ring-opacity-50";
   return (
-    <header className="relative">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
-        <Logo />
-        <div className="flex items-center gap-3">
-          <a href="#features" className="text-slate-500 hover:text-slate-200 transition">Features</a>
-          <a href="#solana" className="text-slate-500 hover:text-slate-200 transition">Solana</a>
-          <a href="#how" className="text-slate-500 hover:text-slate-200 transition">How it works</a>
-          <a href="#cta" className="rounded-md border border-white/10 px-3 py-1.5 hover:border-cyan-300/60 hover:text-slate-200 shadow-[0_12px_40px_rgba(0,0,0,0.35)] transition">
-            Sign In
-          </a>
+    <header className="relative pt-20 pb-24 bg-gray-950 overflow-hidden">
+      {/* Background Gradient Effect - Solana-esque */}
+      <div className="absolute top-0 left-1/2 transform -translate-x-1/2 h-[500px] w-[1000px] bg-indigo-500/10 blur-[150px] pointer-events-none"></div>
+
+      <div className="max-w-7xl mx-auto px-4 text-center relative z-10">
+        <h1 className="text-6xl sm:text-7xl font-extrabold tracking-tight text-white mb-6">
+          Automate Everything on{" "}
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 via-cyan-400 to-indigo-500">
+            Solana
+          </span>
+        </h1>
+
+        <div className="mb-10">
+          <SignedIn>
+            <button
+              onClick={() => {
+                navigate("/dashboard");
+              }}
+              className={ctaClasses}
+            >
+              Go to Dashboard
+            </button>
+          </SignedIn>
+
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button className={ctaClasses}>
+                Start Automating Your Solana Workflow
+              </button>
+            </SignInButton>
+          </SignedOut>
         </div>
-      </nav>
 
-      <section className="mx-auto max-w-7xl px-6 pb-8 pt-10">
-        <div className="mx-auto max-w-3xl text-center">
-          <h1 className="text-4xl md:text-6xl font-semibold tracking-tight">
-            Build automations with <span className="text-cyan-300">Solana actions</span> & triggers
-          </h1>
-          <p className="mt-4 text-slate-400 md:text-lg">
-            Connect on-chain events, APIs, and your stack in a visual workflow builder that ships fast and stays reliable.
-          </p>
-          <div className="mt-6 flex items-center justify-center gap-3">
-            <a
-              href="#cta"
-              className="rounded-lg bg-cyan-400 px-5 py-2.5 text-[#0b0f14] font-medium shadow-[0_0_35px_rgba(34,211,238,0.3)] hover:brightness-110 transition"
-            >
-              Get started free
-            </a>
-            <a
-              href="#how"
-              className="rounded-lg border border-white/10 px-5 py-2.5 text-slate-200 hover:border-cyan-300/60 transition"
-            >
-              See how it works
-            </a>
-          </div>
+        <div className="mt-20 w-full max-w-4xl mx-auto flex items-center justify-between text-white relative">
 
-          <div className="mt-10">
-            <div className="relative rounded-xl border border-white/10 bg-[#0f151d]/80 backdrop-blur-sm shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
-              <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-3">
-                <Card title="Solana Trigger" subtitle="Program Log: Swap Executed" accent="from-[#9945FF] to-cyan-300">
-                  <Badge>On-chain</Badge>
-                </Card>
-                <Connector />
-                <Card title="Filter" subtitle="Amount > 10 SOL" accent="from-cyan-300 to-[#14F195]">
-                  <Badge>Logic</Badge>
-                </Card>
-                <Connector />
-                <Card title="Action" subtitle="Notify Discord + Webhook" accent="from-[#14F195] to-[#9945FF]">
-                  <Badge>Action</Badge>
-                </Card>
-              </div>
-            </div>
-            <p className="mt-3 text-sm text-slate-500">
-              Examples: Listen to token mints, program logs, account changes; trigger webhooks, indexers, alerts, or off-chain jobs.
+          <div className="absolute left-[30%] top-1/2 w-[20%] h-1 bg-gray-700/50"></div>
+          <div className="absolute left-[50%] top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4 border-t-2 border-r-2 border-gray-700/50 rotate-45"></div>
+
+          <div className="absolute right-[30%] top-1/2 w-[20%] h-1 bg-gray-700/50"></div>
+          <div className="absolute right-[50%] top-1/2 transform translate-x-1/2 -translate-y-1/2 w-4 h-4 border-t-2 border-r-2 border-gray-700/50 rotate-45"></div>
+
+
+          <div className="w-1/3 p-5 rounded-xl border border-purple-500 bg-gray-900 shadow-xl transition-all duration-300 hover:scale-[1.05] hover:shadow-purple-500/30">
+            <p className="text-2xl font-bold mb-1 text-purple-400">1. Trigger</p>
+            <p className="text-sm text-gray-300">
+              <span className="font-semibold text-white">SOLANA Event:</span> Wallet A receives 100 SPL Tokens.
             </p>
           </div>
+          <div className="w-1/3 mx-4 p-5 rounded-xl border border-indigo-500 bg-gray-900 shadow-xl transition-all duration-300 hover:scale-[1.05] hover:shadow-indigo-500/30 relative">
+            <span className="absolute -top-3 left-1/2 transform -translate-x-1/2 px-2 py-1 text-xs font-semibold text-white rounded-full bg-gradient-to-r from-purple-600 to-indigo-600">
+              ByteGrid
+            </span>
+            <p className="text-2xl font-bold mb-1 text-indigo-400">2. Filter</p>
+            <p className="text-sm text-gray-300">
+              Check if the token is exactly SOL/USDC and value $$ 50.
+            </p>
+          </div>
+
+          <div className="w-1/3 p-5 rounded-xl border border-cyan-500 bg-gray-900 shadow-xl transition-all duration-300 hover:scale-[1.05] hover:shadow-cyan-500/30">
+            <p className="text-2xl font-bold mb-1 text-cyan-400">3. Action</p>
+            <p className="text-sm text-gray-300">
+              <span className="font-semibold text-white">Send Reminder:</span> Send a success mail.
+            </p>
+          </div>
+
         </div>
-      </section>
+      </div>
     </header>
   );
-}
-
-function Card({
-  title, subtitle, children, accent
-}: { title: string; subtitle: string; children?: React.ReactNode; accent: string }) {
-  return (
-    <div className="rounded-lg border border-white/10 bg-[#0f151d] p-4">
-      <div className={`h-1 w-full rounded bg-gradient-to-r ${accent}`} />
-      <div className="mt-3">
-        <div className="text-slate-200 font-medium">{title}</div>
-        <div className="text-slate-500 text-sm">{subtitle}</div>
-        <div className="mt-3">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-function Badge({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-md bg-white/5 px-2 py-1 text-xs text-slate-400 ring-1 ring-white/10">
-      {children}
-    </span>
-  );
-}
-
-function Connector() {
-  return (
-    <div className="flex items-center justify-center">
-      <div className="h-0.5 w-10 bg-white/15" />
-      <div className="mx-2 h-2 w-2 rounded-full bg-cyan-400" />
-      <div className="h-0.5 w-10 bg-white/15" />
-    </div>
-  );
-}
-
+};

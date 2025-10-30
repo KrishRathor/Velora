@@ -1,1 +1,1 @@
-export const BACKEND_URL = "https://velora-d5yb.onrender.com"
+export const BACKEND_URL = "https://api.bytegrid.cloud/api/v1"

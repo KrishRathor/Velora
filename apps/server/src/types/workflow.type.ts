@@ -41,7 +41,7 @@ export const OperationsEnum = z.enum([
   "merge_pr",
   "create_issue",
   "list_user_repo",
-  "sol_transfer_trigger",
+  "sol_transfer",
   "sol_get_balance",
   "recieve_email",
   "recieve_email_from_specific_account",
@@ -88,7 +88,7 @@ export enum Ops {
   "merge_pr",
   "create_issue",
   "list_user_repo",
-  "sol_transfer_trigger",
+  "sol_transfer",
   "recieve_email",
   "recieve_email_from_specific_account",
   "send_mail"
@@ -109,7 +109,7 @@ export interface IWorkflowNodeConfig {
   | "merge_pr"
   | "create_issue"
   | "list_user_repo"
-  | "sol_transfer_trigger"
+  | "sol_transfer"
   | "sol_get_balance"
   | "recieve_email"
   | "recieve_email_from_specific_account"
@@ -124,8 +124,8 @@ export interface IWorkflowNodeConfig {
   mode?: ValueOrDynamic<"devnet" | "mainnet">;
   fromEmail?: ValueOrDynamic<string>;
   toEmail?: ValueOrDynamic<string>;
-  subject: ValueOrDynamic<string>;
-  message: ValueOrDynamic<string>
+  subject?: ValueOrDynamic<string>;
+  message?: ValueOrDynamic<string>
 }
 
 export interface GetPRDetailsResult {
@@ -173,7 +173,7 @@ export interface NodeQueuePayload {
   | "merge_pr"
   | "create_issue"
   | "list_user_repo"
-  | "sol_transfer_trigger"
+  | "sol_transfer"
   | "sol_get_balance"
   | "recieve_email"
   | "recieve_email_from_specific_account"
@@ -186,7 +186,7 @@ export interface NodeQueuePayload {
   | "merge_pr"
   | "create_issue"
   | "list_user_repo"
-  | "sol_transfer_trigger"
+  | "sol_transfer"
   | "sol_get_balance"
   | "recieve_email"
   | "recieve_email_from_specific_account"

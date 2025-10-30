@@ -35,6 +35,8 @@ triggerRouter.post("/set/:id", requireAuth() ,async (req: Request, res: Response
   try {
     const { id } = req.params;
 
+    console.log("here");
+
     if (typeof id !== "string") {
       res.status(HttpStatus.BAD_REQUEST).json({
         message: "Invalid body type",

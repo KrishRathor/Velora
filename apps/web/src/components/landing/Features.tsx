@@ -1,42 +1,59 @@
-
-import { Icon } from '../ui/Icon';
-
-const icons = {
-  bolt: 'M13 2L3 14h7l-1 8 10-12h-7l1-8z',
-  nodes: 'M6 12h12M12 6v12M4 8l4-4M16 20l4-4M4 16l4 4M16 4l4 4',
-  shield: 'M12 3l8 4v6a10 10 0 01-8 8 10 10 0 01-8-8V7l8-4z',
-  plug: 'M7 7l10 10M7 17l10-10M5 12h14'
-};
-
-export default function Features() {
-  const items = [
-    { title: 'Visual workflows', desc: 'Drag, connect, and deploy flows in minutes with a clean canvas and robust nodes.', icon: icons.nodes },
-    { title: 'Solana native', desc: 'Listen to program logs, account changes, token mints, or slots and react instantly.', icon: icons.bolt },
-    { title: 'Integrations', desc: 'Webhooks, REST, Discord, Slack, Postgres, Redis, and custom actions from code.', icon: icons.plug },
-    { title: 'Reliability', desc: 'Replay, idempotency, and retries so on-chain volatility never breaks your flows.', icon: icons.shield }
-  ];
+export const Features: React.FC = () => {
   return (
-    <section id="features" className="mx-auto max-w-7xl px-6 py-16">
-      <div className="mx-auto max-w-2xl text-center">
-        <h2 className="text-3xl font-semibold text-slate-200">Everything to ship automations</h2>
-        <p className="mt-3 text-slate-400">Build production flows with confidence—observability, versioning, and secure credentials included.</p>
-      </div>
-      <div className="mt-10 grid gap-6 md:grid-cols-2">
-        {items.map((f) => (
-          <div key={f.title} className="rounded-xl border border-white/10 bg-[#0f151d] p-5 shadow-[0_12px_40px_rgba(0,0,0,0.35)] hover:shadow-[0_0_35px_rgba(34,211,238,0.20)] transition">
-            <div className="flex items-start gap-3">
-              <div className="rounded-md bg-white/5 p-2 ring-1 ring-white/10">
-                <Icon path={f.icon} className="text-cyan-300" />
-              </div>
-              <div>
-                <div className="text-slate-200 font-medium">{f.title}</div>
-                <p className="mt-1 text-slate-500">{f.desc}</p>
-              </div>
-            </div>
+    <section className="py-20 bg-gray-900">
+      <div className="max-w-7xl mx-auto px-4">
+        <h2 className="text-4xl font-bold text-center text-white mb-16">
+          The Power of Solana, Simplified
+        </h2>
+
+        <div className="grid md:grid-cols-2 gap-12">
+          {/* Solana Triggers */}
+          <div className="p-8 rounded-xl border border-purple-600/50 bg-gray-950 shadow-2xl">
+            <div className="text-4xl mb-4 text-purple-400">⚡</div>
+            <h3 className="text-3xl font-semibold text-white mb-4">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">
+                Solana Triggers
+              </span>
+            </h3>
+            <p className="text-gray-400 mb-6">
+              Start your automation based on real-time events happening on the **Solana blockchain**.
+            </p>
+            <ul className="space-y-3 text-gray-300">
+              <li className="flex items-center">
+                <span className="mr-3 text-green-400">✔</span> Wallet Transaction Detected
+              </li>
+              <li className="flex items-center">
+                <span className="mr-3 text-green-400">✔</span> Token Balance Change (SPL Tokens)
+              </li>
+              <li className="flex items-center">
+                <span className="mr-3 text-green-400">✔</span> Program Instruction Executed
+              </li>
+            </ul>
           </div>
-        ))}
+
+          {/* Connected Actions */}
+          <div className="p-8 rounded-xl border border-indigo-600/50 bg-gray-950 shadow-2xl">
+            <div className="text-4xl mb-4 text-indigo-400">🔗</div>
+            <h3 className="text-3xl font-semibold text-white mb-4">
+              Connected Actions
+            </h3>
+            <p className="text-gray-400 mb-6">
+              Execute actions across your favorite Web2 and Web3 services.
+            </p>
+            <ul className="space-y-3 text-gray-300">
+              <li className="flex items-center">
+                <span className="mr-3 text-green-400">✔</span> Send a Discord/Slack Alert
+              </li>
+              <li className="flex items-center">
+                <span className="mr-3 text-green-400">✔</span> Call a Custom Webhook API
+              </li>
+              <li className="flex items-center">
+                <span className="mr-3 text-green-400">✔</span> Update a Google Sheet
+              </li>
+            </ul>
+          </div>
+        </div>
       </div>
     </section>
   );
-}
-
+};

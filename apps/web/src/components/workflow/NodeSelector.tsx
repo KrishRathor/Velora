@@ -1,17 +1,18 @@
 import React, { useMemo, useState } from 'react';
 import {
   FaTimes,
-  FaMousePointer,
-  FaClock,
-  FaCalendarAlt,
   FaEnvelopeOpenText,
-  FaRunning,
   FaSearch,
   FaLink,
   FaArrowLeft,
   FaToggleOn,
   FaToggleOff
 } from 'react-icons/fa';
+import { WalletAddressField } from './WalletInput';
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@clerk/clerk-react";
+import { BACKEND_URL } from "../../utils/constants";
+
 
 export enum SidebarView {
   MAIN_TRIGGERS,
@@ -19,48 +20,71 @@ export enum SidebarView {
   OPERATION_CONFIG,
 }
 
-export type Integration = 'github' | 'gmail' | 'airtable' | 'notion';
+export type Integration = 'github' | 'gmail' | 'airtable' | 'notion' | 'solana';
 
 export type Ops =
-  | 'create_pr_trigger'
-  | 'create_issue_trigger'
-  | 'get_pr_details'
-  | 'add_comment_to_pr'
-  | 'merge_pr'
-  | 'create_issue'
-  | 'list_user_repo'
-  | 'send_email'
-  | 'watch_email';
+  | "create_pr_trigger"
+  | "create_issue_trigger"
+  | "get_pr_details"
+  | "add_comment_to_pr"
+  | "merge_pr"
+  | "create_issue"
+  | "list_user_repo"
+  | "sol_transfer"
+  | "recieve_email"
+  | "recieve_email_from_specific_account"
+  | "send_mail";
+
 
 export interface NodeQueuePayload {
   workflowId: string;
   node: string;
   prevNode?: string;
-  prevNodeOperation?:
-  | 'create_pr_trigger'
-  | 'create_issue_trigger'
-  | 'get_pr_details'
-  | 'add_comment_to_pr'
-  | 'merge_pr'
-  | 'create_issue'
-  | 'list_user_repo';
-  integration: Integration;
-  operation:
-  | 'create_pr_trigger'
-  | 'create_issue_trigger'
-  | 'get_pr_details'
-  | 'add_comment_to_pr'
-  | 'merge_pr'
-  | 'create_issue'
-  | 'list_user_repo';
+  prevNodeOperation?: | "create_pr_trigger"
+  | "create_issue_trigger"
+  | "get_pr_details"
+  | "add_comment_to_pr"
+  | "merge_pr"
+  | "create_issue"
+  | "list_user_repo"
+  | "sol_transfer"
+  | "sol_get_balance"
+  | "recieve_email"
+  | "recieve_email_from_specific_account"
+  | "send_mail";
+  integration: "github" | "gmail" | "solana";
+  operation: | "create_pr_trigger"
+  | "create_issue_trigger"
+  | "get_pr_details"
+  | "add_comment_to_pr"
+  | "merge_pr"
+  | "create_issue"
+  | "list_user_repo"
+  | "sol_transfer"
+  | "sol_get_balance"
+  | "recieve_email"
+  | "recieve_email_from_specific_account"
+  | "send_mail";
   accessToken: string;
+  refreshToken?: string;
   config: IWorkflowNodeConfig;
   result?: {
-    prNumber?: number;
-    prId?: string | number;
-    prUrl?: string;
+    prNumber?: number,
+    prId?: string | number,
+    prUrl?: string,
+    sol_transfer_from?: string,
+    sol_transfer_to?: string,
+    sol_transfer_balance?: number,
+    token_transfer_from?: string,
+    token_transfer_to?: string,
+    token_transfer_amount?: number,
+    current_sol_balance?: number,
+    email_from?: string,
+    email_subject?: string,
+    email_body?: string
   };
 }
+
 
 export type ValueOrDynamic<T = any> =
   | { type: 'static'; value: T }
@@ -75,13 +99,23 @@ export interface IWorkflowNodeConfig {
   | 'add_comment_to_pr'
   | 'merge_pr'
   | 'create_issue'
-  | 'list_user_repo';
+  | 'list_user_repo'
+  | "sol_transfer"
+  | "sol_get_balance"
+  | "recieve_email"
+  | "recieve_email_from_specific_account"
+  | "send_mail";
   repo?: string | ValueOrDynamic<string>;
   prNumber?: string | ValueOrDynamic<string>;
   comment?: string | ValueOrDynamic<string>;
   issueTitle?: string | ValueOrDynamic<string>;
   issueBody?: string | ValueOrDynamic<string>;
   condition?: string | ValueOrDynamic<string>;
+  walletAddress?: string | ValueOrDynamic<string>
+  fromEmail?: string | ValueOrDynamic,
+  toEmail?: string | ValueOrDynamic<string>,
+  subject?: string | ValueOrDynamic<string>,
+  message?: string | ValueOrDynamic<string>,
 }
 
 const availableIntegrations = [
@@ -102,8 +136,8 @@ const integrationOps: Record<Integration, { title: string; value: Ops }[]> = {
     { title: 'List User Repos', value: 'list_user_repo' },
   ],
   gmail: [
-    { title: 'Send Email', value: 'send_email' },
-    { title: 'Watch New Email', value: 'watch_email' },
+    { title: 'Send Email', value: 'send_mail' },
+    { title: 'Watch New Email', value: 'recieve_email' },
   ],
   airtable: [
     { title: 'Watch Records', value: 'watch_email' as Ops }, // placeholder mapping
@@ -111,6 +145,12 @@ const integrationOps: Record<Integration, { title: string; value: Ops }[]> = {
   notion: [
     { title: 'Watch Pages', value: 'watch_email' as Ops }, // placeholder mapping
   ],
+  solana: [
+    { title: 'On SOL Transfer', value: 'sol_transfer' as Ops },
+    { title: 'On Token Transfer', value: 'token_transfer' as Ops },
+    { title: 'Get Account Balance', value: 'get_balance' as Ops },
+  ],
+
 };
 
 interface NodeItem {
@@ -120,13 +160,22 @@ interface NodeItem {
   description: string;
 }
 
+
 const mainTriggerItems: NodeItem[] = [
-  { type: 'trigger-manual', icon: <FaMousePointer />, title: 'Trigger manually', description: 'Runs the flow when you press a button in n8n. Good for getting started quickly.' },
-  { type: 'trigger-app-event', icon: <FaEnvelopeOpenText />, title: 'On app event', description: 'Runs the flow when something happens in an app like Telegram, Notion or Airtable.' },
-  { type: 'trigger-schedule', icon: <FaClock />, title: 'On a schedule', description: 'Runs the flow every hour, day, or custom interval.' },
-  { type: 'trigger-webhook', icon: <FaCalendarAlt />, title: 'On webhook call', description: 'Runs the flow on receiving an HTTPS request.' },
-  { type: 'trigger-other', icon: <FaRunning />, title: 'Other ways...', description: 'Runs the flow on schedule, form submission, or other complex events.' },
+  {
+    type: 'trigger-app-event',
+    icon: <FaEnvelopeOpenText />,
+    title: 'On app event',
+    description: 'Runs the flow when something happens in an app like GitHub, Gmail, or Notion.',
+  },
+  {
+    type: 'trigger-solana-event',
+    icon: <FaLink />,
+    title: 'On Solana event',
+    description: 'Runs the flow when a Solana on-chain event occurs, such as a transfer or balance change.',
+  },
 ];
+
 
 interface NodeSelectorSidebarProps {
   isOpen: boolean;
@@ -238,6 +287,9 @@ export const DynamicFormInput: React.FC<DynamicFormInputProps> = ({
           <option value="prId">prId</option>
           <option value="prNumber">prNumber</option>
           <option value="prUrl">prUrl</option>
+          <option value="sol_transfer_from">sol_transfer_from</option>
+          <option value="sol_transfer_to">sol_transfer_to</option>
+          <option value="sol_transfer_balance">sol_transfer_balance</option>
         </select>
       )}
     </div>
@@ -250,6 +302,35 @@ export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({ isOpen
   const [searchTerm, setSearchTerm] = useState('');
   const [currentConfig, setCurrentConfig] = useState<Partial<IWorkflowNodeConfig>>({});
   const [dynamicFields, setDynamicFields] = useState<Partial<Record<keyof IWorkflowNodeConfig, boolean>>>({});
+  const [walletAddress, setWalletAddress] = useState<string>('');
+
+  const { getToken } = useAuth();
+
+  const fetchIntegrations = async () => {
+    const token = await getToken();
+    const res = await fetch(`${BACKEND_URL}/integrations/${token}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error("Failed to fetch integrations");
+    return res.json();
+  };
+
+  const { data: integrationsData, isLoading: _integrationsLoading } = useQuery({
+    queryKey: ["integrations", "user"],
+    queryFn: fetchIntegrations,
+  });
+
+  const hasIntegration = (provider: string) => {
+    console.log(integrationsData, provider);
+    const integrations = integrationsData?.response || [];
+    const providers = integrations.map((i: any) => i.provider);
+    console.log(providers);
+    const res = providers.includes(provider);
+    console.log(res);
+    return res;
+  };
+
+
 
   const filteredApps = useMemo(() => {
     return availableIntegrations.filter(app =>
@@ -269,6 +350,10 @@ export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({ isOpen
       setView(SidebarView.APP_SELECTION);
       setSearchTerm('');
       setCurrentConfig({});
+    } else if (type === 'trigger-solana-event') {
+      setView(SidebarView.OPERATION_CONFIG);
+      setCurrentConfig({ integration: 'solana' as Integration });
+      setSearchTerm('');
     } else {
       onAddNode({}, type);
       onClose();
@@ -298,9 +383,22 @@ export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({ isOpen
   const handleCreateNode = () => {
     const { integration, operation } = currentConfig as IWorkflowNodeConfig;
 
+    console.log(integration, operation, currentConfig);
+
+    if (integration === "github" && !hasIntegration("github")) {
+      alert("Please connect your GitHub account first in the Credentials tab.");
+      return;
+    }
+
+    if (integration === "gmail" && !hasIntegration("gmail")) {
+      alert("Please connect your Google account first in the Credentials tab.");
+      return;
+    }
+
     if (integration && operation) {
       const nodeType = currentConfig.integration as string;
-      onAddNode(currentConfig as IWorkflowNodeConfig, nodeType);
+      const finalConfig = { ...currentConfig, walletAddress };
+      onAddNode(finalConfig as IWorkflowNodeConfig, nodeType);
       setCurrentConfig({});
       setDynamicFields({});
       setView(SidebarView.MAIN_TRIGGERS);
@@ -418,13 +516,20 @@ export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({ isOpen
         } else {
           const opTitle = integrationOps[currentConfig.integration as Integration]?.find(op => op.value === operation)?.title || String(operation);
 
+
           const requiredFields = {
             repo: ['create_issue', 'create_pr_trigger', 'create_issue_trigger', 'list_user_repo', 'get_pr_details'].includes(operation as string),
             prNumber: ['get_pr_details', 'add_comment_to_pr', 'merge_pr'].includes(operation as string),
             issueTitle: ['create_issue'].includes(operation as string),
             issueBody: ['create_issue'].includes(operation as string),
             comment: ['add_comment_to_pr'].includes(operation as string),
+            walletAddress: ['sol_transfer', 'token_transfer', 'get_balance'].includes(operation as string),
+            fromEmail: ['send_mail'].includes(operation as string),
+            toEmail: ['send_mail'].includes(operation as string),
+            subject: ['send_mail'].includes(operation as string),
+            message: ['send_mail'].includes(operation as string),
           };
+
 
           const handleFieldChange = (key: keyof IWorkflowNodeConfig, value: string | ValueOrDynamic<string>) => {
             setCurrentConfig(prev => ({ ...prev, [key]: value }));
@@ -489,6 +594,69 @@ export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({ isOpen
                     placeholder="Type your comment here..."
                   />
                 )}
+
+
+
+                {requiredFields.walletAddress && (
+                  <div className="space-y-2">
+                    <WalletAddressField
+                      label="Wallet Address"
+                      value={walletAddress}
+                      onChange={setWalletAddress}
+                    />
+
+                    {/* Optional: Devnet/Mainnet selector */}
+                    <div className="flex justify-between items-center">
+                      <label className="text-sm text-gray-300">Network</label>
+                      <select
+                        className="bg-gray-700 border border-gray-600 text-white rounded-md p-2"
+                        onChange={(e) =>
+                          console.log("Network:", e.target.value)
+                        }
+                      >
+                        <option value="devnet">Devnet</option>
+                        <option value="mainnet-beta">Mainnet</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+
+                {requiredFields.toEmail && (
+                  <DynamicFormInput
+                    label="To Email"
+                    value={currentConfig.toEmail}
+                    onChange={(val) => handleFieldChange('toEmail', val)}
+                    isDynamic={!!dynamicFields.toEmail}
+                    setIsDynamic={(isD) => handleToggleDynamic('toEmail', isD)}
+                    placeholder="e.g. recipient@email.com"
+                  />
+                )}
+
+                {requiredFields.subject && (
+                  <DynamicFormInput
+                    label="Subject"
+                    value={currentConfig.subject}
+                    onChange={(val) => handleFieldChange('subject', val)}
+                    isDynamic={!!dynamicFields.subject}
+                    setIsDynamic={(isD) => handleToggleDynamic('subject', isD)}
+                    placeholder="e.g. Hello from Workflow!"
+                  />
+                )}
+
+                {requiredFields.message && (
+                  <DynamicFormInput
+                    label="Email Body"
+                    type="textarea"
+                    value={currentConfig.message}
+                    onChange={(val) => handleFieldChange('message', val)}
+                    isDynamic={!!dynamicFields.message}
+                    setIsDynamic={(isD) => handleToggleDynamic('message', isD)}
+                    placeholder="Type your email content here..."
+                  />
+                )}
+
+
               </div>
 
               <button

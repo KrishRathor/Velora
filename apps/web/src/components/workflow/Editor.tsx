@@ -238,6 +238,8 @@ export const Editor: React.FC<EditorProps> = ({ workflow }) => {
       })
 
       if (!response.ok) {
+        const res = await response.json();
+        console.log(res);
         throw new Error("Can't create node");
       }
 
@@ -252,6 +254,12 @@ export const Editor: React.FC<EditorProps> = ({ workflow }) => {
     | 'merge_pr'
     | 'create_issue'
     | 'list_user_repo'
+    | "sol_transfer"
+    | "sol_get_balance"
+    | "recieve_email"
+    | "recieve_email_from_specific_account"
+    | "send_mail"
+
   ): string => {
     switch (operation) {
       case 'create_pr_trigger':
@@ -284,6 +292,30 @@ export const Editor: React.FC<EditorProps> = ({ workflow }) => {
     })
   }
 
+  const createSolanaNodes = async (config: IWorkflowNodeConfig) => {
+    console.log("here");
+    createNodeMutation.mutate({
+      positionX: 0,
+      positionY: 0,
+      config,
+      type: "Action", // or "Trigger" depending on your solana ops
+      name: config.operation ? config.operation : "Solana Node",
+    });
+  };
+
+  const createGoogleMailNode = async (config: IWorkflowNodeConfig) => {
+    console.log("here");
+    createNodeMutation.mutate({
+      positionX: 0,
+      positionY: 0,
+      config,
+      type: "Action", // or "Trigger" depending on your solana ops
+      name: config.operation ? config.operation : "Solana Node",
+    });
+
+  }
+
+
   const handleEdgeDelete = async (deletedEdges: Edge[]) => {
     deletedEdgeMutation.mutate({
       id: deletedEdges[0].id
@@ -291,6 +323,8 @@ export const Editor: React.FC<EditorProps> = ({ workflow }) => {
   }
 
   const handleAddNode = (config: IWorkflowNodeConfig, type: string) => {
+    console.log("here in add node", config, type);
+
     switch (type) {
       case "github":
         const newConfig: any = { ...config };
@@ -309,8 +343,54 @@ export const Editor: React.FC<EditorProps> = ({ workflow }) => {
         }
         createGithubNodes(newConfig);
         break;
-      case "google":
+      case "gmail":
         console.log("google type");
+
+        const googleConfig: any = { ...config };
+
+        for (const key of Object.keys(config)) {
+          if (["integration", "operation"].includes(key)) continue;
+
+          const newKey = key as keyof IWorkflowNodeConfig;
+          const val = config[newKey];
+
+          if (val && typeof val === "object" && "type" in val) {
+            googleConfig[key] = val;
+          } else {
+            googleConfig[key] = { type: "static", value: val };
+          }
+        }
+
+        console.log("Google config:", googleConfig);
+
+        if (config.operation === "send_mail") {
+          createGoogleMailNode(googleConfig);
+        } else {
+        }
+
+        break;
+      case "solana":
+
+        const solanaConfig: any = { ...config };
+
+        for (const key of Object.keys(config)) {
+          if (["integration", "operation"].includes(key)) continue;
+
+          const newKey = key as keyof IWorkflowNodeConfig;
+          const val = config[newKey];
+
+          if (val && typeof val === "object" && "type" in val) {
+            solanaConfig[key] = val; // dynamic field
+          } else {
+            solanaConfig[key] = { type: "static", value: val };
+          }
+        }
+
+        console.log(solanaConfig);
+
+        createSolanaNodes(solanaConfig);
+
+        console.log("solana type");
         break;
       default:
         console.log("default case...");
@@ -376,7 +456,6 @@ export const Editor: React.FC<EditorProps> = ({ workflow }) => {
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
-          nodeTypes={nodeTypes}
           onConnect={onConnect}
           onEdgesDelete={handleEdgeDelete}
           onNodeClick={handleNodeClick}
