@@ -412,20 +412,6 @@ triggerRouter.post("/get/gmail/:id", async (req: Request, res: Response) => {
       return;
     }
 
-    oauth2Client.setCredentials({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    });
-
-    const gmail = google.gmail({ version: "v1", auth: oauth2Client });
-
-    const r = await gmail.users.history.list({
-      userId: "me",
-      startHistoryId: `${shid}`, // or store lastHistoryId in DB
-      historyTypes: ["messageAdded"],
-    });
-
-    console.log("=======>>>>>>>>>>", r.data, r.body, r.bodyUsed, r.json(), r.text);
 
     const parsedConfig = WorkflowNodeConfigSchema.safeParse(config);
 
