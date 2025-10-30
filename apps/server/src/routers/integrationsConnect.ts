@@ -3,8 +3,20 @@ import { HttpStatus } from "../types";
 import { prisma } from "../db/db";
 import { config } from "dotenv";
 import { getAuth } from "@clerk/express";
+import { google } from "googleapis";
 
 config();
+
+const BACKEND_URL = process.env.BACKEND_URL!;
+const clientId = process.env.GOOGLE_CLIENT_ID!;
+const clientSecret = process.env.GOOGLE_CLIENT_SECRET!;
+
+
+const oauth2Client = new google.auth.OAuth2(
+  clientId,
+  clientSecret,
+  `http://localhost:3000/api/v1/integrations/connect/google/callback`
+);
 
 export const integrationsConnectRouter = Router();
 
@@ -163,6 +175,119 @@ integrationsConnectRouter.get("/connect/github/callback", async (req: Request, r
     })
   }
 })
+
+integrationsConnectRouter.post("/connect/google", async (req: Request, res: Response) => {
+  try {
+    console.log("here")
+
+    const scopes = [
+      "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/gmail.modify",
+      "https://www.googleapis.com/auth/gmail.send",
+
+      "https://www.googleapis.com/auth/calendar.readonly",
+      "https://www.googleapis.com/auth/calendar.events",
+
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/userinfo.profile",
+      "openid",
+    ];
+
+    const authUrl = oauth2Client.generateAuthUrl({
+      access_type: "offline",
+      scope: scopes.join(" "),
+      prompt: "consent",
+    });
+
+    res.status(HttpStatus.OK).json({
+      url: authUrl,
+    });
+
+  } catch (error) {
+    console.log(error);
+    res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      message: "INTERNAL_SERVER_ERROR",
+      response: null
+    })
+  }
+})
+
+integrationsConnectRouter.get("/connect/google/callback", async (req: Request, res: Response) => {
+  try {
+    const code = req.query.code as string;
+
+    if (!code) {
+      res.status(HttpStatus.BAD_REQUEST).send("Missing code");
+      return;
+    }
+
+    const { tokens } = await oauth2Client.getToken(code);
+    oauth2Client.setCredentials(tokens);
+
+    const { userId } = getAuth(req);
+
+    if (typeof userId !== "string") {
+      res.status(HttpStatus.BAD_REQUEST).json({
+        message: "userid not found",
+        response: null,
+      });
+      return;
+    }
+
+    const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
+    const { data: userInfo } = await oauth2.userinfo.get();
+
+    const existingIntegration = await prisma.integrationConnection.findFirst({
+      where: {
+        userId,
+        provider: "gmail",
+      },
+    });
+
+    if (existingIntegration) {
+      const update = await prisma.integrationConnection.update({
+        where: {
+          id: existingIntegration.id,
+        },
+        data: {
+          accessToken: tokens.access_token ?? "",
+          refreshToken: tokens.refresh_token ?? existingIntegration.refreshToken ?? "",
+          scopes: tokens.scope ?? "",
+          tokenType: tokens.token_type ?? "",
+          updatedAt: new Date(),
+        },
+      });
+
+      res.status(HttpStatus.OK).json({
+        message: "Tokens updated",
+        response: update.id,
+      });
+      return;
+    }
+
+    const create = await prisma.integrationConnection.create({
+      data: {
+        accessToken: tokens.access_token ?? "",
+        refreshToken: tokens.refresh_token ?? "",
+        scopes: tokens.scope ?? "",
+        tokenType: tokens.token_type ?? "",
+        userId,
+        provider: "gmail",
+      },
+    });
+
+    res.status(HttpStatus.OK).json({
+      message: "Created",
+      response: create.id,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      message: "INTERNAL_SERVER_ERROR",
+      response: null,
+    });
+  }
+});
 
 integrationsConnectRouter.post("/delete/:integrationId", async (req: Request, res: Response) => {
   try {

@@ -3,6 +3,8 @@ import { prisma } from "../db/db";
 import { addCommentToPR, createIssue, getPRDetails, listUserRepos, mergePR } from "../integrations/github";
 import { nodeQueue } from ".";
 import { WorkflowNodeConfigSchema, type NodeQueuePayload } from "../types/workflow.type";
+import { getBalances } from "../integrations/solana";
+import { sendEmail } from "../integrations/gmail";
 
 function toStringSafe(value: any) {
   if (typeof value === "string") return value;
@@ -30,6 +32,17 @@ export const proccessJob = async (job: Job) => {
       return
     }
 
+    const workflow = await prisma.workflow.findFirst({
+      where: {
+        id: nodeObject.workflowId
+      }
+    })
+
+    if (!workflow) {
+      console.log("workflwo id not found in worker");
+      return
+    }
+
     const parsedConfig = WorkflowNodeConfigSchema.safeParse(nodeObject.config);
 
     if (parsedConfig.error) {
@@ -39,17 +52,43 @@ export const proccessJob = async (job: Job) => {
 
     const { integration, operation } = parsedConfig.data;
 
-    const newpayload = {
+    const int = await prisma.integrationConnection.findFirst({
+      where: {
+        provider: "github",
+        userId: workflow.userId
+      }
+    })
+    if (!int) {
+      console.log("github not supported");
+      return;
+    }
+    const accessToken = int?.accessToken;
+    const refreshToken = int.refreshToken;
+
+    let newpayload = {
       ...payload,
       config: parsedConfig.data,
       operation,
-      integration
+      integration,
+      accessToken,
+      refreshToken
     }
 
     switch (integration) {
       case "github":
+
         // @ts-ignore
         await handleGithubJobs(newpayload);
+        break
+
+      case "gmail":
+        // @ts-ignore
+        await handleGoogleJobs(newpayload);
+        break
+      case "solana":
+        // @ts-ignore
+        await handleSolanaJobs(newpayload);
+
         break
     }
 
@@ -266,6 +305,122 @@ const handleGithubJobs = async (payload: NodeQueuePayload) => {
     }
   } catch (error) {
     console.log(error)
+  }
+
+}
+
+const handleSolanaJobs = async (payload: NodeQueuePayload) => {
+  try {
+
+    const { operation, accessToken, workflowId, node, config, result } = payload;
+    const { walletAddress, mode } = payload.config;
+
+    const edges = await prisma.workflowEdge.findMany({
+      where: {
+        sourceNodeId: payload.node
+      }
+    })
+
+    switch (operation) {
+      case "sol_get_balance":
+
+        if (!walletAddress || !mode) {
+          console.log("no walletAddress or mode found in queue");
+          return;
+        }
+
+        if (walletAddress.type === "dynamic" || mode.type === "dynamic") {
+          console.log("walletAddress or mode is dynamic")
+          return
+        }
+
+        const sol = await getBalances(walletAddress.value, mode.value);
+
+        edges.map(edge => {
+          const newPayload: NodeQueuePayload = {
+            accessToken,
+            workflowId,
+            prevNode: node,
+            prevNodeOperation: operation,
+            node: edge.targetNodeId,
+            config,
+            result: {
+              ...result,
+              current_sol_balance: sol
+            },
+            integration: "solana",
+            operation
+          }
+          nodeQueue.add("node", newPayload);
+        })
+
+        break
+    }
+
+
+  } catch (error) {
+    console.log(error);
+  }
+
+}
+
+const handleGoogleJobs = async (payload: NodeQueuePayload) => {
+
+  const { result, config, operation, node, accessToken, workflowId, refreshToken } = payload;
+
+  const edges = await prisma.workflowEdge.findMany({
+    where: {
+      sourceNodeId: node
+    }
+  })
+
+  switch (operation) {
+    case "send_mail":
+
+      const { toEmail, subject, message } = config;
+      let to = "", sub = "", msg = "";
+      if (toEmail?.type === "static") {
+        to = toEmail.type;
+      } else if (toEmail?.type === "dynamic" && result) {
+        to = result[toEmail?.field]
+      }
+
+      if (subject?.type === "static") {
+        sub = subject.type;
+      } else if (subject?.type === "dynamic" && result) {
+        sub = result[subject?.field]
+      }
+
+      if (message?.type === "static") {
+        sub = message.type;
+      } else if (message?.type === "dynamic" && result) {
+        sub = result[message?.field]
+      }
+
+      if (!refreshToken) {
+        return
+      }
+
+      await sendEmail(to, sub, msg, accessToken, refreshToken);
+
+      edges.map(edge => {
+        const newPayload: NodeQueuePayload = {
+          accessToken,
+          refreshToken,
+          workflowId,
+          prevNode: node,
+          prevNodeOperation: operation,
+          node: edge.targetNodeId,
+          config,
+          result: {
+            ...result
+          },
+          integration: "gmail",
+          operation
+        }
+        nodeQueue.add("node", newPayload);
+      })
+      break;
   }
 
 }

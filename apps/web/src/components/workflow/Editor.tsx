@@ -23,6 +23,37 @@ interface EditorProps {
   workflow: WorkflowI
 }
 
+
+export const GitHubNode = ({ label }: { label: string }) => {
+  return (
+    <div className="bg-gray-900 text-white p-3 rounded-xl shadow-md border border-gray-700">
+      <div className="flex items-center gap-2">
+        <img src="/icons/github.svg" alt="GitHub" className="w-5 h-5" />
+        <span className="font-semibold">GitHub</span>
+      </div>
+      <div className="text-sm mt-1 text-gray-300">{label}</div>
+    </div>
+  );
+};
+
+export const GmailNode = ({ label }: { label: string }) => {
+  return (
+    <div className="bg-red-50 text-red-800 p-3 rounded-xl shadow-md border border-red-200">
+      <div className="flex items-center gap-2">
+        <img src="/icons/gmail.svg" alt="Gmail" className="w-5 h-5" />
+        <span className="font-semibold">Gmail</span>
+      </div>
+      <div className="text-sm mt-1">{label}</div>
+    </div>
+  );
+};
+
+
+const nodeTypes = {
+  github: GitHubNode,
+  gmail: GmailNode,
+};
+
 export interface WorkflowNode {
   id: string;
   workflowId: string;
@@ -30,7 +61,7 @@ export interface WorkflowNode {
   name: string;
   positionX: number;
   positionY: number;
-  config: any; // Prisma Json type can be any in TS
+  config: any;
   orderIndex: number;
 }
 
@@ -345,6 +376,7 @@ export const Editor: React.FC<EditorProps> = ({ workflow }) => {
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          nodeTypes={nodeTypes}
           onConnect={onConnect}
           onEdgesDelete={handleEdgeDelete}
           onNodeClick={handleNodeClick}
@@ -404,3 +436,4 @@ export const AddNodeControl: React.FC<AddNodeControlProps> = ({ onToggleSidebar 
     </Panel>
   );
 };
+

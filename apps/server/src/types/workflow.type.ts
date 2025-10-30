@@ -32,7 +32,7 @@ export const createWorkflowEdgeSchema = z.object({
 
 })
 
-const IntegrationsEnum = z.enum(["github", "gmail"]);
+const IntegrationsEnum = z.enum(["github", "gmail", "solana"]);
 export const OperationsEnum = z.enum([
   "create_pr_trigger",
   "create_issue_trigger",
@@ -41,11 +41,23 @@ export const OperationsEnum = z.enum([
   "merge_pr",
   "create_issue",
   "list_user_repo",
+  "sol_transfer_trigger",
+  "sol_get_balance",
+  "recieve_email",
+  "recieve_email_from_specific_account",
+  "send_mail"
 ]);
 
 const ValueOrDynamicSchema = z.union([
   z.object({ type: z.literal("static"), value: z.any() }),
-  z.object({ type: z.literal("dynamic"), nodeId: z.string(), field: z.string() }),
+  z.object({
+    type: z.literal("dynamic"), nodeId: z.string(), field: z.enum(["prNumber", "prId", "prUrl", "sol_transfer_from",
+      "sol_transfer_to",
+      "sol_transfer_balance",
+      "token_transfer_from",
+      "token_transfer_to",
+      "token_transfer_amount"])
+  }),
 ]);
 
 export const WorkflowNodeConfigSchema = z.object({
@@ -59,6 +71,13 @@ export const WorkflowNodeConfigSchema = z.object({
   issueBody: ValueOrDynamicSchema.optional(),
 
   condition: ValueOrDynamicSchema.optional(),
+  walletAddress: ValueOrDynamicSchema.optional(),
+  mode: ValueOrDynamicSchema.optional(),
+
+  fromEmail: ValueOrDynamicSchema.optional(),
+  toEmail: ValueOrDynamicSchema.optional(),
+  subject: ValueOrDynamicSchema.optional(),
+  message: ValueOrDynamicSchema.optional(),
 });
 
 export enum Ops {
@@ -69,6 +88,10 @@ export enum Ops {
   "merge_pr",
   "create_issue",
   "list_user_repo",
+  "sol_transfer_trigger",
+  "recieve_email",
+  "recieve_email_from_specific_account",
+  "send_mail"
 }
 
 export type ValueOrDynamic<T = any> =
@@ -77,7 +100,7 @@ export type ValueOrDynamic<T = any> =
 
 
 export interface IWorkflowNodeConfig {
-  integration: "github" | "gmail";
+  integration: "github" | "gmail" | "solana";
   operation:
   | "create_pr_trigger"
   | "create_issue_trigger"
@@ -85,13 +108,24 @@ export interface IWorkflowNodeConfig {
   | "add_comment_to_pr"
   | "merge_pr"
   | "create_issue"
-  | "list_user_repo";
+  | "list_user_repo"
+  | "sol_transfer_trigger"
+  | "sol_get_balance"
+  | "recieve_email"
+  | "recieve_email_from_specific_account"
+  | "send_mail";
   repo?: ValueOrDynamic<string>;
   prNumber?: ValueOrDynamic<string>;
   comment?: ValueOrDynamic<string>;
   issueTitle?: ValueOrDynamic<string>;
   issueBody?: ValueOrDynamic<string>;
   condition?: ValueOrDynamic<string>;
+  walletAddress?: ValueOrDynamic<string>;
+  mode?: ValueOrDynamic<"devnet" | "mainnet">;
+  fromEmail?: ValueOrDynamic<string>;
+  toEmail?: ValueOrDynamic<string>;
+  subject: ValueOrDynamic<string>;
+  message: ValueOrDynamic<string>
 }
 
 export interface GetPRDetailsResult {
@@ -138,20 +172,41 @@ export interface NodeQueuePayload {
   | "add_comment_to_pr"
   | "merge_pr"
   | "create_issue"
-  | "list_user_repo";
-  integration: "github" | "gmail";
+  | "list_user_repo"
+  | "sol_transfer_trigger"
+  | "sol_get_balance"
+  | "recieve_email"
+  | "recieve_email_from_specific_account"
+  | "send_mail";
+  integration: "github" | "gmail" | "solana";
   operation: | "create_pr_trigger"
   | "create_issue_trigger"
   | "get_pr_details"
   | "add_comment_to_pr"
   | "merge_pr"
   | "create_issue"
-  | "list_user_repo";
+  | "list_user_repo"
+  | "sol_transfer_trigger"
+  | "sol_get_balance"
+  | "recieve_email"
+  | "recieve_email_from_specific_account"
+  | "send_mail";
   accessToken: string;
+  refreshToken?: string;
   config: IWorkflowNodeConfig;
   result?: {
     prNumber?: number,
     prId?: string | number,
-    prUrl?: string
+    prUrl?: string,
+    sol_transfer_from?: string,
+    sol_transfer_to?: string,
+    sol_transfer_balance?: number,
+    token_transfer_from?: string,
+    token_transfer_to?: string,
+    token_transfer_amount?: number,
+    current_sol_balance?: number,
+    email_from?: string,
+    email_subject?: string,
+    email_body?: string
   };
 }

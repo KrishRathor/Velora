@@ -8,6 +8,7 @@ import { workflowEdgeRouter } from "./routers/workflowEdgeRouter";
 import { integrationsConnectRouter } from "./routers/integrationsConnect";
 import { triggerRouter } from "./routers/triggersRouter";
 import { clerkMiddleware, requireAuth } from '@clerk/express'
+import { solanaTriggerRouter } from "./routers/solanaTriggerRouter";
 
 const app = express();
 
@@ -18,17 +19,18 @@ app.use(clerkMiddleware());
 
 const router = Router()
 
+app.use("/api/v1", router);
+
 router.use("/users", userRouter);
 
-router.use("/workflow", requireAuth(), workflowRouter);
+router.use("/workflow", requireAuth() ,workflowRouter);
 router.use("/workflow/edges", requireAuth(), workflowEdgeRouter)
 router.use("/workflow/node", requireAuth(), workflowNodeRouter);
 
 router.use("/integrations", requireAuth(), integrationsConnectRouter);
 router.use("/trigger", triggerRouter);
 
-app.use("/api/v1", router);
-
+router.use("/solana/trigger", solanaTriggerRouter);
 
 app.listen(3000, () => {
   console.log(`Server listening on port 3000...`);
